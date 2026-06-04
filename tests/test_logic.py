@@ -1,7 +1,7 @@
 """Unit tests for pure pipeline logic (no OCR / no image IO)."""
 from src.braces import associate
 from src.glyphs import group_numbers, iou, nms
-from src.pipeline import valid_number
+from src.pipeline import valid_callout
 
 
 def _det(text, cx, cy):
@@ -65,12 +65,15 @@ def test_nms_drops_overlap_keeps_best():
     assert {d["conf"] for d in kept} == {0.9, 0.8}
 
 
-def test_valid_number():
-    assert valid_number("7")
-    assert valid_number("29")
-    assert valid_number("116")        # catalogs exceed 100
-    assert not valid_number("0")
-    assert not valid_number("012")   # leading zero
-    assert not valid_number("250")   # out of range
-    assert not valid_number("")
-    assert not valid_number("1a")
+def test_valid_callout():
+    assert valid_callout("7")
+    assert valid_callout("29")
+    assert valid_callout("116")        # catalogs exceed 100
+    assert valid_callout("1A")         # ETKA suffix callouts
+    assert valid_callout("16B")
+    assert not valid_callout("0")
+    assert not valid_callout("012")   # leading zero
+    assert not valid_callout("250")   # out of range
+    assert not valid_callout("")
+    assert not valid_callout("A")     # bare letter
+    assert not valid_callout("1C")    # unsupported suffix

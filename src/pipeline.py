@@ -6,12 +6,22 @@ from src import glyphs as G
 from src.ocr import recognize_batch
 
 
-def valid_number(text):
-    if not text or not text.isdigit():
+import re
+
+_CALLOUT = re.compile(rf"^(\d{{1,3}})([{C.SUFFIXES}]?)$")
+
+
+def valid_callout(text):
+    """Accept N or N+suffix (e.g. 7, 29, 1A, 16B); numeric part within range."""
+    if not text:
         return False
-    if len(text) > 1 and text[0] == "0":   # no leading-zero callouts
+    m = _CALLOUT.match(text)
+    if not m:
         return False
-    return C.DIGIT_RANGE[0] <= int(text) <= C.DIGIT_RANGE[1]
+    num = m.group(1)
+    if len(num) > 1 and num[0] == "0":   # no leading-zero callouts
+        return False
+    return C.DIGIT_RANGE[0] <= int(num) <= C.DIGIT_RANGE[1]
 
 
 def detect(gray):
@@ -23,7 +33,7 @@ def detect(gray):
 
     dets = []
     for box, (text, conf) in zip(gated, recognize_batch(gray, gated)):
-        if conf < C.MIN_CONFIDENCE or not valid_number(text):
+        if conf < C.MIN_CONFIDENCE or not valid_callout(text):
             continue
         x, y, w, h = box
         dets.append({"text": text, "conf": round(conf, 3),

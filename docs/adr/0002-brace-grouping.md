@@ -32,5 +32,7 @@ verticals that are otherwise tall and thin (460127200: 4 → 2 candidates).
 
 ## Known limitations / future work
 - Per-layout variation in ETKA brackets not fully handled.
-- `2A`-style alphanumeric ids still digit-only (recognition limitation).
+- Alphanumeric ids: A/B suffixes now recognized (allowlist `0-9AB` + `valid_callout`
+  regex `\d{1,3}[AB]?`); fixed 1A/1B/16A on 121105250. A occasionally still lost
+  when its glyph is faint/detached (4A → 4). Other suffix letters not handled.
 - Optional later: local leader tracing for true digit→part geometry.
