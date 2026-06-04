@@ -1,6 +1,12 @@
 <div align="center">
 <h1>parts-diagram-ocr</h1>
 <p>Detect callout numbers and their grouping braces on exploded-view spare-parts diagrams.</p>
+
+<a href="https://tegos.github.io/parts-diagram-ocr/sample.html">
+  <img src="assets/hero.webp" alt="interactive viewer: fit, zoom, pan and click-to-focus a callout" width="800">
+</a>
+
+<sub><b><a href="https://tegos.github.io/parts-diagram-ocr/sample.html">▶ Open the live interactive viewer</a></b> — fit · wheel-zoom · drag-pan · click a number to fly to its part</sub>
 </div>
 
 ---
@@ -78,6 +84,20 @@ Outputs land in `data/out/`:
 ```
 
 Throughput ≈ 1 s/image after a one-time ~30 s model load.
+
+## Interactive viewer
+
+Turn detections into a self-contained HTML page — pan/zoom the diagram, hover a
+box to light its callout, click a number in the sidebar to fly to its part
+(the animation above). Point it at an image or a result `.json`:
+
+```bash
+python -m src.viewer data/images/258103600.png --out docs
+# -> docs/258103600.html  (image copied alongside, no server needed)
+```
+
+Open the file directly, or publish `docs/` via GitHub Pages — that's how the
+[live demo](https://tegos.github.io/parts-diagram-ocr/sample.html) is served.
 
 ## Tests
 

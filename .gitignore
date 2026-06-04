@@ -6,6 +6,7 @@ __pycache__/
 *.egg-info/
 data/out/
 .verify-shots/
+scripts/make_hero.py   # local hero-recorder, not shipped
 .DS_Store
 
 ### JetBrains template
