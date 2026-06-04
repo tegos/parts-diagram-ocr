@@ -8,9 +8,16 @@ OUT_DIR = DATA_DIR / "out"
 
 # --- glyph candidate filter (connected components, absolute px) ---
 GLYPH_MIN_H, GLYPH_MAX_H = 16, 70     # single-digit glyph height
-GLYPH_MIN_W, GLYPH_MAX_W = 6, 60      # single-digit glyph width
+GLYPH_MIN_W, GLYPH_MAX_W = 3, 60      # was 6; 3 admits the narrow "1" digit (w4-5
+                                      # with its serif/flag), which reads as a clean
+                                      # callout. Solid 1px leader bars are still cut
+                                      # by GLYPH_MAX_FILL; tall-thin line fragments by
+                                      # GLYPH_MAX_ASPECT. See docs/adr/0002.
 GLYPH_MIN_FILL, GLYPH_MAX_FILL = 0.18, 0.85  # area/bbox: rejects lines & solid blobs
-GLYPH_MIN_AREA = 50          # was 60; 50 keeps faint small digits (e.g. a 58px "7")
+GLYPH_MIN_AREA = 30          # was 50; a small "1" is only ~38px, so 50 dropped it
+GLYPH_MAX_ASPECT = 7         # h/w cap. A printed "1" sits at ~3-4 at every scale
+                             # (serifs scale with height); leader-line fragments that
+                             # read as "1" are bare bars at aspect 10+ -> rejected.
 
 # --- number grouping ---
 GROUP_GAP = 0.8        # max horizontal gap between glyphs, in units of glyph height

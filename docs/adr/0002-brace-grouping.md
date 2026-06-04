@@ -56,8 +56,9 @@ turned into numbered groups. Reasons, each verified on the sample:
   lands on a line endpoint, not the prong, so the id is mislocated.
 - Leader lines run flush against the brace, so nearest-callout picks the leader's
   number (big diagonal → "7") instead of the real id.
-- On this flat exploded view the id "1" is itself the undetected thin-bar "1"
-  (see limitation below), so its number is absent from the callout list entirely.
+- The id "1" sits at the prong but is a narrow digit; it is now recovered as a
+  callout (ADR 0001 update), yet pinning it to *this* brace still needs the prong
+  geometry above, which remains the blocker.
 - The open-line filter floods on other layouts (121105250 → 10, 194500200 → 13
   candidates); only the strict `associate` id+members gate keeps those inert.
   Looser id rules would spawn false groups (guarded: groups on the 5 eval images
@@ -72,10 +73,6 @@ future work.
 - Nested braces double-count: a sub-group's members also appear in the enclosing
   group (194500200: 12A in both grp 6 and grp 21).
 - Interior duplicate misreads (one number read 2-3× from drawing features).
-- Thin standalone "1"/"11" are not detected: a 1px vertical bar is geometrically
-  identical to drawing strokes (a single diagram can have 40+ such strokes), so
-  any stroke-acceptance heuristic floods false "1"s. Multi-digit "1"s read fine
-  when a normal-width digit anchors the number.
 - Per-layout variation in catalog brackets not fully handled.
 - Alphanumeric ids: A/B suffixes now recognized (allowlist `0-9AB` + `valid_callout`
   regex `\d{1,3}[AB]?`); fixed 1A/1B/16A on 121105250. A occasionally still lost
