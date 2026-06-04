@@ -1,6 +1,38 @@
 """Unit tests for pure pipeline logic (no OCR / no image IO)."""
+from src.braces import associate
 from src.glyphs import group_numbers, iou, nms
 from src.pipeline import valid_number
+
+
+def _det(text, cx, cy):
+    return {"text": text, "conf": 1.0, "bbox": [cx - 5, cy - 5, cx + 5, cy + 5]}
+
+
+def test_associate_left_brace_opens_right():
+    # left-margin brace at x=100 spanning y=100..400; group-id "15" to its left,
+    # members 17/18 to its right within span; "99" is outside the span.
+    braces = [(100, 100, 20, 300)]
+    dets = [_det("15", 60, 250), _det("17", 200, 150),
+            _det("18", 200, 350), _det("99", 200, 900)]
+    groups = associate(braces, dets, image_width=1000)
+    assert len(groups) == 1
+    g = groups[0]
+    assert g["group"] == "15"
+    assert sorted(m["text"] for m in g["members"]) == ["17", "18"]
+
+
+def test_associate_right_brace_opens_left():
+    braces = [(900, 100, 20, 300)]
+    dets = [_det("16", 950, 250), _det("20", 800, 150), _det("21", 800, 350)]
+    groups = associate(braces, dets, image_width=1000)
+    assert groups[0]["group"] == "16"
+    assert sorted(m["text"] for m in groups[0]["members"]) == ["20", "21"]
+
+
+def test_associate_skips_brace_with_no_members():
+    braces = [(100, 100, 20, 300)]
+    dets = [_det("15", 60, 250)]  # only an outer callout, no inner members
+    assert associate(braces, dets, image_width=1000) == []
 
 
 def test_group_merges_adjacent_same_row():

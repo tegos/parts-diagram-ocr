@@ -34,11 +34,17 @@ def detect(gray):
     return G.nms(dets, C.NMS_IOU)
 
 
-def draw_overlay(bgr, dets):
+def draw_overlay(bgr, dets, groups=None):
     img = bgr.copy()
     for d in dets:
         x0, y0, x1, y1 = d["bbox"]
         cv2.rectangle(img, (x0, y0), (x1, y1), (0, 0, 255), 2)
         cv2.putText(img, d["text"], (x0, y0 - 4), cv2.FONT_HERSHEY_SIMPLEX,
                     0.7, (0, 0, 255), 2)
+    for g in groups or []:
+        bx0, by0, bx1, by1 = g["brace_bbox"]
+        cv2.rectangle(img, (bx0, by0), (bx1, by1), (255, 0, 255), 2)
+        label = f"grp {g['group']}" if g["group"] else "grp ?"
+        cv2.putText(img, label, (bx0, by0 - 6), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.8, (255, 0, 255), 2)
     return img
