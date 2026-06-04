@@ -1,54 +1,86 @@
 <div align="center">
 <h1>parts-diagram-ocr</h1>
-<p>OCR for callout numbers on ETKA exploded-view auto-parts diagrams</p>
+<p>Detect callout numbers and their grouping braces on ETKA exploded-view auto-parts diagrams.</p>
 </div>
-<hr/>
 
-Example of input image: 
+---
 
-![picture alt](images/1.png "Image")
+Exploded-view parts diagrams (VW/Audi ETKA style) label each part with a small
+**callout number** at the end of a leader line, and group related parts with a
+`{` **brace**. This tool reads those callouts and reconstructs the groupings.
 
-This project in not finished.
+![example](assets/example-overlay.png)
 
-## Dependencies
+*Red = detected callouts, magenta = grouping braces with their group id.*
 
-These scripts need python 2.7.x and the following libraries to work:
+## How it works
 
-1. sklearn==0.0
-2. imutils==0.5.1
-3. numpy==1.15.2
-4. opencv-python==3.4.3.18
-5. Pillow==5.3.0
-6. scikit-learn==0.20.0
-7. scipy==1.1.0
+Clean black-on-white line art defeats off-the-shelf OCR detectors (they look for
+words, not isolated digits), so detection is done with classic CV and only the
+*recognition* uses ML:
 
+1. **Detect** glyph blobs with connected components, group adjacent ones into numbers.
+2. **Gate** by whitespace isolation — real callouts sit in the margin, drawing
+   features sit in ink.
+3. **Recognize** every candidate in one batched EasyOCR call (`0-9` + `A/B` suffix).
+4. **Group** — detect `{` braces (vertical and horizontal) and bind each to its
+   group-id + member callouts.
 
-1. Install python. Just use the installer from [python's website](https://www.python.org/downloads/)
-2. Install numpy.
-3. Install python-opencv. Download the release from [its sourceforge site](http://sourceforge.net/projects/opencvlibrary/files/). 
-(Choose the release based on your operating system, then choose version 2.4.12). 
-The executable is just an archive. Extract the files, then copy `cv2.pyd` to the `lib/site-packages` folder on your python installation path.
-Fow Windows you can take `cv2.pyd` file from repo, directory `/libs/cv2`.
-4. Install pip. Download [the script for installing pip](https://bootstrap.pypa.io/get-pip.py), open cmd (or termianl if you are using Linux/Mac OS X), go to the path where the downloaded script resides, and run `python get-pip.py`
-5. Install pillow. Run `pip install pillow`. 
-6. Install scikit-learn. Run `pip install scikit-learn`
+See [`docs/adr/`](docs/adr) for the decisions behind this (engine choice, grouping).
 
-## Execution
+## Setup
 
-Run this file `cv/main.py`
+Requires Python 3.10+.
 
-![picture alt](images/readme/screen/run.png "run")
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt   # opencv, numpy, Pillow, easyocr (pulls torch, CPU)
+```
 
-## Results
+## Usage
 
-![picture alt](images/readme/screen/1.png_30_debug.png "png_30_debug")
+```bash
+# all images in data/images/
+python -m src.detect
 
-![picture alt](images/readme/screen/result.png "result")
+# specific files
+python -m src.detect data/images/258103600.png
 
-![picture alt](images/readme/screen/result_1.png "result_1")
+# JSON only, no overlay images
+python -m src.detect --no-overlay
+```
 
-![picture alt](images/readme/screen/result_2.png "result_2")
+Outputs land in `data/out/`:
+- `<name>.json` — detections + groups
+- `<name>_overlay.png` — annotated image
 
-## LICENSE
+```json
+{
+  "image": "258103600.png",
+  "detections": [{"text": "17", "conf": 1.0, "bbox": [135, 340, 179, 374]}],
+  "groups": [{"group": "15", "members": [{"text": "17", "bbox": [...]}],
+              "brace_bbox": [...], "group_bbox": [...]}]
+}
+```
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+Throughput ≈ 1 s/image after a one-time ~30 s model load.
+
+## Tests
+
+```bash
+pip install pytest && python -m pytest tests -q
+```
+
+## Limitations
+
+- Interior drawing features occasionally misread as a digit.
+- Nested braces double-count: a sub-group's members also list under the outer group.
+- Only `A`/`B` callout suffixes; the letter is sometimes lost when faint (`4A` → `4`).
+- Very small/thin callouts can be missed.
+
+The original 2018 Python 2.7 template-matching + KNN prototype is kept under
+[`legacy/`](legacy) for reference.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
