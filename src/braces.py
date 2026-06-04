@@ -19,6 +19,19 @@ BRACE_MAX_SHORT = 80
 BRACE_MAX_FILL = 0.35
 BRACE_ISO_MAX_INK = 0.18   # whitespace gate; rejects part-contour lines
 
+# open-line brace filter (Phase 3b): grouping braces drawn as DIAGONAL thin lines.
+# A diagonal line has a near-square bbox, so the aspect test above misses it. These
+# braces are instead identified as thin (low-fill), whitespace-isolated, OPEN
+# polylines -- holes==0 separates them from the closed loops of part contours.
+# See docs/adr/0002. Detected for the overlay only; not auto-numbered into groups
+# (the prong/id geometry is too noisy on flat exploded views -- ADR 0002).
+OPEN_MIN_AREA = 150        # line length in px (thin line: area ~= length)
+OPEN_MAX_AREA = 4000       # above this it's a part body, not a brace line
+OPEN_MAX_FILL = 0.06       # area/bbox: a thin line nearly vanishes in its bbox
+OPEN_MIN_LONG = 80         # bbox long side: span at least a couple of rows
+OPEN_ISO_MAX_INK = 0.06    # whitespace gate, tighter than solid braces
+OPEN_MAX_HOLES = 0         # open polyline encloses nothing; part outlines do
+
 # association tolerances
 GROUP_MIDBAND = 0.30       # group-id near brace tip (fraction of span length)
 MEMBER_REACH = 0.13        # member row/column distance (fraction of perp image dim)
@@ -41,6 +54,43 @@ def detect_braces(gray, binv=None):
         if area / float(w * h) > BRACE_MAX_FILL:
             continue
         if ink_ratio_ring(binv, (x, y, w, h)) > BRACE_ISO_MAX_INK:
+            continue
+        out.append((x, y, w, h))
+    return out
+
+
+def _hole_count(label_crop, idx):
+    """Holes enclosed by component `idx` -- 0 for an open line, >0 for a loop."""
+    mask = (label_crop == idx).astype("uint8") * 255
+    _, hier = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+    if hier is None:
+        return 0
+    return sum(1 for c in hier[0] if c[3] != -1)   # contour with a parent = hole
+
+
+def detect_open_braces(gray, binv=None):
+    """Diagonal thin OPEN-polyline braces -> boxes (x, y, w, h).
+
+    Complements detect_braces, which only catches axis-aligned (tall/wide)
+    braces. Diagonal braces have a near-square bbox, so they need a different
+    signature: thin (low fill), whitespace-isolated, and topologically open
+    (no enclosed holes -- the discriminator against closed part contours).
+    """
+    if binv is None:
+        binv = binarize_inv(gray)
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
+    out = []
+    for i in range(1, n):
+        x, y, w, h, area = (int(v) for v in stats[i])
+        if area < OPEN_MIN_AREA or area > OPEN_MAX_AREA:
+            continue
+        if max(w, h) < OPEN_MIN_LONG:
+            continue
+        if area / float(w * h) > OPEN_MAX_FILL:
+            continue
+        if ink_ratio_ring(binv, (x, y, w, h)) > OPEN_ISO_MAX_INK:
+            continue
+        if _hole_count(labels[y:y+h, x:x+w], i) > OPEN_MAX_HOLES:
             continue
         out.append((x, y, w, h))
     return out

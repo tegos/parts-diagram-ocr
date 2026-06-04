@@ -1,5 +1,8 @@
 """Unit tests for pure pipeline logic (no OCR / no image IO)."""
-from src.braces import associate
+import numpy as np
+import cv2
+
+from src.braces import associate, detect_open_braces
 from src.glyphs import group_numbers, iou, nms
 from src.pipeline import valid_callout
 
@@ -37,6 +40,45 @@ def test_associate_horizontal_brace():
     groups = associate(braces, dets, image_width=1000, image_height=1000)
     assert groups[0]["group"] == "21"
     assert sorted(m["text"] for m in groups[0]["members"]) == ["5", "6", "7"]
+
+
+def _canvas():
+    return np.full((220, 220), 255, np.uint8)
+
+
+def test_open_brace_detects_diagonal_line():
+    # a thin diagonal line: near-square bbox, so the aspect filter misses it,
+    # but it is thin + isolated + open -> detect_open_braces catches it.
+    g = _canvas()
+    cv2.line(g, (30, 30), (170, 150), 0, 2)
+    braces = detect_open_braces(g)
+    assert len(braces) == 1
+
+
+def test_open_brace_rejects_closed_loop():
+    # a thin large rectangle OUTLINE encloses a hole -> rejected (part contour).
+    g = _canvas()
+    cv2.rectangle(g, (30, 30), (190, 190), 0, 1)
+    assert detect_open_braces(g) == []
+
+
+def test_open_brace_rejects_solid_blob():
+    # a filled block is not thin (high fill) -> rejected.
+    g = _canvas()
+    cv2.rectangle(g, (60, 60), (150, 150), 0, -1)
+    assert detect_open_braces(g) == []
+
+
+def test_open_brace_finds_three_on_sample():
+    # regression guard: the alternator sample has exactly three diagonal grouping
+    # braces (over parts 1, 2, 5) that the axis-aligned detector misses entirely.
+    from src.config import DATA_DIR
+    p = DATA_DIR / "sample.png"
+    if not p.exists():
+        import pytest
+        pytest.skip("sample.png not present")
+    g = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
+    assert len(detect_open_braces(g)) == 3
 
 
 def test_associate_skips_brace_with_no_members():

@@ -42,8 +42,13 @@ def detect(gray):
     return G.nms(dets, C.NMS_IOU)
 
 
-def draw_overlay(bgr, dets, groups=None):
+def draw_overlay(bgr, dets, groups=None, open_braces=None):
     img = bgr.copy()
+    # diagonal open-line braces: drawn (cyan) but not numbered -- see ADR 0002
+    for (bx, by, bw, bh) in open_braces or []:
+        cv2.rectangle(img, (bx, by), (bx + bw, by + bh), (255, 200, 0), 2)
+        cv2.putText(img, "brace", (bx, by - 6), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.7, (255, 200, 0), 2)
     for d in dets:
         x0, y0, x1, y1 = d["bbox"]
         cv2.rectangle(img, (x0, y0), (x1, y1), (0, 0, 255), 2)
