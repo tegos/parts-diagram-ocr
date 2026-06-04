@@ -82,7 +82,7 @@ def associate(braces, dets, image_width):
                 if abs(_cy(d) - mid_y) <= band and abs(_cx(d) - bx_c) <= group_dx]
         group = min(cand, key=lambda d: abs(_cx(d) - bx_c)) if cand else None
 
-        if not inner:
+        if not inner or group is None:   # a group needs both an id and members
             continue
         groups.append({
             "group": group["text"] if group else None,

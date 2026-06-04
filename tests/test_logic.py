@@ -35,6 +35,13 @@ def test_associate_skips_brace_with_no_members():
     assert associate(braces, dets, image_width=1000) == []
 
 
+def test_associate_skips_brace_with_no_group_id():
+    # members present but nothing on the outer side -> no group id -> dropped
+    braces = [(100, 100, 20, 300)]
+    dets = [_det("17", 200, 150), _det("18", 200, 350)]
+    assert associate(braces, dets, image_width=1000) == []
+
+
 def test_group_merges_adjacent_same_row():
     # two glyphs side by side, height 30, gap 10 -> one number
     boxes = [(100, 100, 20, 30), (125, 100, 20, 30)]
