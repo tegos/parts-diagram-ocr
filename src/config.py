@@ -4,7 +4,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 IMAGES_DIR = DATA_DIR / "images"
-SAMPLES_DIR = DATA_DIR / "samples"
 OUT_DIR = DATA_DIR / "out"
 
 # --- glyph candidate filter (connected components, absolute px) ---
