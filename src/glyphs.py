@@ -27,6 +27,8 @@ def glyph_candidates(binv):
             continue
         if area < C.GLYPH_MIN_AREA:
             continue
+        if h / float(w) > C.GLYPH_MAX_ASPECT:   # reject tall-thin line fragments
+            continue
         fill = area / float(w * h)
         if not (C.GLYPH_MIN_FILL <= fill <= C.GLYPH_MAX_FILL):
             continue

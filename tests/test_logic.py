@@ -3,7 +3,7 @@ import numpy as np
 import cv2
 
 from src.braces import associate, detect_open_braces
-from src.glyphs import group_numbers, iou, nms
+from src.glyphs import glyph_candidates, group_numbers, iou, nms
 from src.pipeline import valid_callout
 
 
@@ -67,6 +67,46 @@ def test_open_brace_rejects_solid_blob():
     g = _canvas()
     cv2.rectangle(g, (60, 60), (150, 150), 0, -1)
     assert detect_open_braces(g) == []
+
+
+def _checker(rows, cols):
+    """A single 8-connected blob filling `rows`x`cols` at ~50% (checkerboard)."""
+    binv = np.zeros((rows + 8, cols + 8), np.uint8)
+    for i in range(rows):
+        for j in range(cols):
+            if (i + j) % 2 == 0:
+                binv[2 + i, 2 + j] = 255
+    return binv
+
+
+def test_glyph_accepts_narrow_one():
+    # a narrow digit "1" (w5, h17, ~half fill, aspect 3.4) must pass -- this is
+    # exactly the shape GLYPH_MIN_W=6 used to drop.
+    cands = glyph_candidates(_checker(17, 5))
+    assert len(cands) == 1
+    x, y, w, h = cands[0]
+    assert w == 5 and h == 17
+
+
+def test_glyph_rejects_tall_thin_bar():
+    # a leader-line fragment (w4, h36, aspect 9) reads as "1" to OCR but must be
+    # rejected at the candidate stage by the aspect cap.
+    assert glyph_candidates(_checker(36, 4)) == []
+
+
+def test_glyph_finds_narrow_one_on_sample():
+    # regression guard: the group-1 id "1" (a w4 digit at ~x552,y624) is a real
+    # callout the old width gate dropped; it must now be a candidate.
+    from src.config import DATA_DIR
+    p = DATA_DIR / "sample.png"
+    if not p.exists():
+        import pytest
+        pytest.skip("sample.png not present")
+    from src.glyphs import binarize_inv
+    g = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
+    cands = glyph_candidates(binarize_inv(g))
+    hit = [b for b in cands if b[0] <= 554 <= b[0] + b[2] and b[1] <= 632 <= b[1] + b[3]]
+    assert hit, "narrow '1' near (552,624) not recovered"
 
 
 def test_open_brace_finds_three_on_sample():
