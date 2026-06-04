@@ -36,6 +36,38 @@ verticals that are otherwise tall and thin (460127200: 4 → 2 candidates).
   near the tip opposite). 194500200 finds grp 21 ({6,7,5}) and grp 6 ({17,12A}).
 - Groups without a resolvable id are dropped.
 
+## Update (Phase 3b — diagonal open-line braces)
+`detect_braces` only catches axis-aligned braces: it gates on bbox aspect
+(`long/short ≥ 3`). On perspective exploded views the grouping bracket is drawn
+as a **diagonal** thin line whose bbox is near-square (aspect ≈ 1.7), so it was
+missed entirely (`data/sample.png` alternator → 0 of 3 braces).
+
+Added `detect_braces`'s sibling `detect_open_braces`: a brace candidate is a
+connected component that is thin (`fill ≤ 0.06`), long (`bbox max side ≥ 80`),
+whitespace-isolated (ring ≤ 0.06), and **topologically open** (`holes == 0`).
+The hole count is the key discriminator — a grouping bracket is an open polyline,
+whereas part contours are closed loops (the rear cover reads 14 holes). On the
+sample this yields exactly the 3 braces and nothing else.
+
+**Detection only — not auto-numbered.** These braces are drawn on the overlay
+(cyan, label `brace`) and recorded under the JSON `open_braces` key, but are NOT
+turned into numbered groups. Reasons, each verified on the sample:
+- The prong/notch pointing at the group-id is shallow (~15px); PCA max-deviation
+  lands on a line endpoint, not the prong, so the id is mislocated.
+- Leader lines run flush against the brace, so nearest-callout picks the leader's
+  number (big diagonal → "7") instead of the real id.
+- On this flat exploded view the id "1" is itself the undetected thin-bar "1"
+  (see limitation below), so its number is absent from the callout list entirely.
+- The open-line filter floods on other layouts (121105250 → 10, 194500200 → 13
+  candidates); only the strict `associate` id+members gate keeps those inert.
+  Looser id rules would spawn false groups (guarded: groups on the 5 eval images
+  stay unchanged, 5→5 / 2→2).
+
+Net: detection is safe and regression-free; reliable numbering of diagonal
+labeled-bracket groups needs a genuine prong/leader discriminator (or targeted
+recognition at the prong tip to recover the id, including the thin "1"), left as
+future work.
+
 ## Known limitations / future work
 - Nested braces double-count: a sub-group's members also appear in the enclosing
   group (194500200: 12A in both grp 6 and grp 21).

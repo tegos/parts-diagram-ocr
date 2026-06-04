@@ -15,7 +15,8 @@ from pathlib import Path
 
 import cv2
 
-from src.braces import associate, detect_braces
+from src.braces import associate, detect_braces, detect_open_braces
+from src.glyphs import binarize_inv
 from src.config import IMAGES_DIR, OUT_DIR
 from src.pipeline import detect, draw_overlay
 
@@ -31,16 +32,19 @@ def process(path, write_overlay=True):
         print(f"SKIP unreadable: {path}", file=sys.stderr)
         return None
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+    binv = binarize_inv(gray)
     dets = detect(gray)
-    braces = detect_braces(gray)
+    braces = detect_braces(gray, binv)
     groups = associate(braces, dets, gray.shape[1], gray.shape[0])
+    open_braces = detect_open_braces(gray, binv)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / f"{path.stem}.json").write_text(json.dumps(
-        {"image": path.name, "detections": dets, "groups": groups}, indent=2))
+        {"image": path.name, "detections": dets, "groups": groups,
+         "open_braces": [list(b) for b in open_braces]}, indent=2))
     if write_overlay:
         cv2.imwrite(str(OUT_DIR / f"{path.stem}_overlay.png"),
-                    draw_overlay(bgr, dets, groups))
+                    draw_overlay(bgr, dets, groups, open_braces))
     return dets, groups
 
 
