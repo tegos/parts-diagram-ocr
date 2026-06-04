@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 *.egg-info/
 data/out/
+.verify-shots/
 .DS_Store
 
 ### JetBrains template
