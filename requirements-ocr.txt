@@ -1,5 +1,0 @@
-# OCR engine candidates for Phase 1 spike. Install ONE, benchmark, then pin the winner.
-# easyocr
-# paddleocr
-# paddlepaddle
-# pytesseract   # also needs system `tesseract-ocr`

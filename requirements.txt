@@ -1,4 +1,6 @@
-# Base — Python 3.12. OCR engine pinned after Phase 1 spike (see requirements-ocr.txt).
+# Base — Python 3.12. OCR engine chosen in Phase 1: EasyOCR (recognition only,
+# inside a connected-components hybrid). See docs/adr/0001-ocr-approach.md.
 numpy>=2.0
 opencv-python>=4.10
 Pillow>=10.4
+easyocr>=1.7   # pulls torch (CPU)
