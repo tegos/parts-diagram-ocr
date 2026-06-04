@@ -14,9 +14,12 @@ Built for **raster** diagrams: black line art on white (PNG/GIF), the static
 format such catalogs export. Vector (SVG) schematics are already clickable and
 don't need OCR; this fills the gap for the raster ones.
 
-![example](assets/example-overlay.png)
+| Input | Detected |
+|:---:|:---:|
+| ![input](assets/example-input.png) | ![output](assets/example-overlay.png) |
 
-*Red = detected callouts, magenta = grouping braces with their group id.*
+*Red boxes = detected callout numbers. On diagrams that use grouping braces,
+each brace is drawn in magenta with its group id.*
 
 ## How it works
 
