@@ -14,7 +14,7 @@ def test_associate_left_brace_opens_right():
     braces = [(100, 100, 20, 300)]
     dets = [_det("15", 60, 250), _det("17", 200, 150),
             _det("18", 200, 350), _det("99", 200, 900)]
-    groups = associate(braces, dets, image_width=1000)
+    groups = associate(braces, dets, image_width=1000, image_height=1000)
     assert len(groups) == 1
     g = groups[0]
     assert g["group"] == "15"
@@ -24,22 +24,32 @@ def test_associate_left_brace_opens_right():
 def test_associate_right_brace_opens_left():
     braces = [(900, 100, 20, 300)]
     dets = [_det("16", 950, 250), _det("20", 800, 150), _det("21", 800, 350)]
-    groups = associate(braces, dets, image_width=1000)
+    groups = associate(braces, dets, image_width=1000, image_height=1000)
     assert groups[0]["group"] == "16"
     assert sorted(m["text"] for m in groups[0]["members"]) == ["20", "21"]
+
+
+def test_associate_horizontal_brace():
+    # wide brace spanning x=200..500 at y=300; group-id "21" above, members below
+    braces = [(200, 300, 300, 20)]
+    dets = [_det("21", 350, 250), _det("6", 240, 380),
+            _det("7", 350, 380), _det("5", 460, 380)]
+    groups = associate(braces, dets, image_width=1000, image_height=1000)
+    assert groups[0]["group"] == "21"
+    assert sorted(m["text"] for m in groups[0]["members"]) == ["5", "6", "7"]
 
 
 def test_associate_skips_brace_with_no_members():
     braces = [(100, 100, 20, 300)]
     dets = [_det("15", 60, 250)]  # only an outer callout, no inner members
-    assert associate(braces, dets, image_width=1000) == []
+    assert associate(braces, dets, image_width=1000, image_height=1000) == []
 
 
 def test_associate_skips_brace_with_no_group_id():
     # members present but nothing on the outer side -> no group id -> dropped
     braces = [(100, 100, 20, 300)]
     dets = [_det("17", 200, 150), _det("18", 200, 350)]
-    assert associate(braces, dets, image_width=1000) == []
+    assert associate(braces, dets, image_width=1000, image_height=1000) == []
 
 
 def test_group_merges_adjacent_same_row():

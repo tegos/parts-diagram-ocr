@@ -33,7 +33,7 @@ def process(path, write_overlay=True):
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     dets = detect(gray)
     braces = detect_braces(gray)
-    groups = associate(braces, dets, gray.shape[1])
+    groups = associate(braces, dets, gray.shape[1], gray.shape[0])
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / f"{path.stem}.json").write_text(json.dumps(
