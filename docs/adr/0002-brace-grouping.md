@@ -30,7 +30,16 @@ verticals that are otherwise tall and thin (460127200: 4 → 2 candidates).
   miss a member or pick a wrong group-id when columns are ambiguous or layouts
   differ. Good enough to surface structure; not a perfect catalog reconstruction.
 
+## Update (manual review)
+- Both orientations now handled: vertical `{` and horizontal braces. Association is
+  axis-agnostic (member side = side with more aligned callouts; id = lone callout
+  near the tip opposite). 194500200 finds grp 21 ({6,7,5}) and grp 6 ({17,12A}).
+- Groups without a resolvable id are dropped.
+
 ## Known limitations / future work
+- Nested braces double-count: a sub-group's members also appear in the enclosing
+  group (194500200: 12A in both grp 6 and grp 21).
+- Interior duplicate misreads (one number read 2-3× from drawing features).
 - Per-layout variation in ETKA brackets not fully handled.
 - Alphanumeric ids: A/B suffixes now recognized (allowlist `0-9AB` + `valid_callout`
   regex `\d{1,3}[AB]?`); fixed 1A/1B/16A on 121105250. A occasionally still lost
