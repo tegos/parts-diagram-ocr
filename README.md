@@ -10,7 +10,7 @@ with a small **callout number** at the end of a leader line, and group related
 parts with a `{` **brace**. This tool reads those callouts and reconstructs the
 groupings.
 
-Built for **raster** diagrams — black line art on white (PNG/GIF), the static
+Built for **raster** diagrams: black line art on white (PNG/GIF), the static
 format such catalogs export. Vector (SVG) schematics are already clickable and
 don't need OCR; this fills the gap for the raster ones.
 
@@ -25,10 +25,10 @@ words, not isolated digits), so detection is done with classic CV and only the
 *recognition* uses ML:
 
 1. **Detect** glyph blobs with connected components, group adjacent ones into numbers.
-2. **Gate** by whitespace isolation — real callouts sit in the margin, drawing
+2. **Gate** by whitespace isolation: real callouts sit in the margin, drawing
    features sit in ink.
 3. **Recognize** every candidate in one batched EasyOCR call (`0-9` + `A/B` suffix).
-4. **Group** — detect `{` braces (vertical and horizontal) and bind each to its
+4. **Group** detected `{` braces (vertical and horizontal), binding each to its
    group-id + member callouts.
 
 See [`docs/adr/`](docs/adr) for the decisions behind this (engine choice, grouping).
@@ -56,8 +56,8 @@ python -m src.detect --no-overlay
 ```
 
 Outputs land in `data/out/`:
-- `<name>.json` — detections + groups
-- `<name>_overlay.png` — annotated image
+- `<name>.json`: detections + groups
+- `<name>_overlay.png`: annotated image
 
 ```json
 {
@@ -88,4 +88,4 @@ The original 2018 Python 2.7 template-matching + KNN prototype is kept under
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
