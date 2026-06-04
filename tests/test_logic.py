@@ -86,7 +86,7 @@ def test_valid_callout():
     assert valid_callout("7")
     assert valid_callout("29")
     assert valid_callout("116")        # catalogs exceed 100
-    assert valid_callout("1A")         # ETKA suffix callouts
+    assert valid_callout("1A")         # suffix callouts
     assert valid_callout("16B")
     assert not valid_callout("0")
     assert not valid_callout("012")   # leading zero

@@ -1,6 +1,6 @@
 """Grouping-brace detection and callout association (Phase 3).
 
-ETKA diagrams group a range of part numbers with a brace, in EITHER orientation:
+Parts-catalog diagrams group a range of part numbers with a brace, in EITHER orientation:
 - vertical '{'  : group-id beside it, members in the adjacent column
 - horizontal '⏝': group-id above/below, members in the adjacent row
 

@@ -1,6 +1,6 @@
 """Phase 3 spike: find grouping braces as tall, thin connected components.
 
-ETKA braces ('{') span several callout rows and group a range of part numbers.
+Grouping braces ('{') span several callout rows and group a range of part numbers.
 They should be tall, thin, vertically-elongated blobs - distinct from both
 digits (small) and the part drawing (large/bulky).
 

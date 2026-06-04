@@ -1,13 +1,18 @@
 <div align="center">
 <h1>parts-diagram-ocr</h1>
-<p>Detect callout numbers and their grouping braces on ETKA exploded-view auto-parts diagrams.</p>
+<p>Detect callout numbers and their grouping braces on exploded-view spare-parts diagrams.</p>
 </div>
 
 ---
 
-Exploded-view parts diagrams (VW/Audi ETKA style) label each part with a small
-**callout number** at the end of a leader line, and group related parts with a
-`{` **brace**. This tool reads those callouts and reconstructs the groupings.
+Exploded-view assembly diagrams from major spare-parts catalogs label each part
+with a small **callout number** at the end of a leader line, and group related
+parts with a `{` **brace**. This tool reads those callouts and reconstructs the
+groupings.
+
+Built for **raster** diagrams — black line art on white (PNG/GIF), the static
+format such catalogs export. Vector (SVG) schematics are already clickable and
+don't need OCR; this fills the gap for the raster ones.
 
 ![example](assets/example-overlay.png)
 
