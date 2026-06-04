@@ -40,6 +40,10 @@ verticals that are otherwise tall and thin (460127200: 4 → 2 candidates).
 - Nested braces double-count: a sub-group's members also appear in the enclosing
   group (194500200: 12A in both grp 6 and grp 21).
 - Interior duplicate misreads (one number read 2-3× from drawing features).
+- Thin standalone "1"/"11" are not detected: a 1px vertical bar is geometrically
+  identical to drawing strokes (a single diagram can have 40+ such strokes), so
+  any stroke-acceptance heuristic floods false "1"s. Multi-digit "1"s read fine
+  when a normal-width digit anchors the number.
 - Per-layout variation in catalog brackets not fully handled.
 - Alphanumeric ids: A/B suffixes now recognized (allowlist `0-9AB` + `valid_callout`
   regex `\d{1,3}[AB]?`); fixed 1A/1B/16A on 121105250. A occasionally still lost
