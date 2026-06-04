@@ -3,7 +3,7 @@ import cv2
 
 from src import config as C
 from src import glyphs as G
-from src.ocr import recognize
+from src.ocr import recognize_batch
 
 
 def valid_number(text):
@@ -19,12 +19,10 @@ def detect(gray):
     binv = G.binarize_inv(gray)
     cand = G.glyph_candidates(binv)
     groups = G.group_numbers(cand)
+    gated = [b for b in groups if G.ink_ratio_ring(binv, b) <= C.ISO_MAX_INK]
 
     dets = []
-    for box in groups:
-        if G.ink_ratio_ring(binv, box) > C.ISO_MAX_INK:   # whitespace gate
-            continue
-        text, conf = recognize(gray, box)
+    for box, (text, conf) in zip(gated, recognize_batch(gray, gated)):
         if conf < C.MIN_CONFIDENCE or not valid_number(text):
             continue
         x, y, w, h = box
