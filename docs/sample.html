@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>sample.png — detections</title>
+<style>
+  :root { --accent:#e23; --brace:#0a8; --ink:#1a1a1a; --muted:#888; --line:#e7e7e7; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;
+         color:var(--ink); background:#f4f4f5; }
+  header { padding:14px 20px; border-bottom:1px solid var(--line); background:#fff; }
+  header h1 { margin:0; font-size:16px; font-weight:600; }
+  header span { color:var(--muted); font-weight:400; }
+  .wrap { display:flex; gap:0; height:calc(100vh - 51px); }
+  aside { width:230px; flex:none; overflow-y:auto; border-right:1px solid var(--line);
+          background:#fff; padding:10px; }
+  aside h2 { font-size:11px; text-transform:uppercase; letter-spacing:.06em;
+             color:var(--muted); margin:14px 6px 6px; }
+  .item { display:flex; align-items:center; justify-content:space-between;
+          padding:6px 10px; margin:2px 0; border-radius:7px; cursor:pointer;
+          border:1px solid transparent; }
+  .item:hover, .item.on { background:#fff0f1; border-color:var(--accent); }
+  .item .num { font:600 14px ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .item .cnt { font-size:11px; color:var(--muted); background:#f0f0f1;
+               border-radius:10px; padding:1px 7px; }
+  .item.brace:hover, .item.brace.on { background:#e7faf5; border-color:var(--brace); }
+  main { flex:1; position:relative; overflow:hidden; padding:0;
+         background:#f4f4f5; touch-action:none; }
+  .stage { position:absolute; top:0; left:0; transform-origin:0 0; cursor:grab;
+           box-shadow:0 1px 8px rgba(0,0,0,.12); background:#fff; will-change:transform; }
+  .stage.dragging { cursor:grabbing; }
+  .stage.animate { transition:transform .35s cubic-bezier(.22,.61,.36,1); }
+  .stage img { display:block; }
+  .tools { position:absolute; right:14px; bottom:14px; display:flex; gap:4px;
+           background:#fff; border:1px solid var(--line); border-radius:9px;
+           padding:4px; box-shadow:0 1px 8px rgba(0,0,0,.14); user-select:none; }
+  .tools button { width:30px; height:30px; border:0; background:#fff; cursor:pointer;
+           border-radius:6px; font:600 15px ui-monospace,monospace; color:var(--ink); }
+  .tools button:hover { background:#f0f0f1; }
+  .tools button.fit { width:auto; padding:0 10px; font-size:12px; }
+  .box { position:absolute; border:2px solid transparent; border-radius:2px;
+         pointer-events:auto; transition:background .08s,border-color .08s; }
+  .box.callout { border-color:transparent; }
+  .box.callout.on { border-color:var(--accent); background:rgba(238,34,51,.18); }
+  .box.brace.on   { border-color:var(--brace);  background:rgba(0,168,136,.14); }
+  body.showall .box.callout { border-color:rgba(238,34,51,.35); }
+  body.showall .box.brace   { border-color:rgba(0,168,136,.4); }
+  .tag { position:absolute; top:-9px; left:-2px; transform:translateY(-100%);
+         background:var(--accent); color:#fff; font:600 11px ui-monospace,monospace;
+         padding:1px 6px; border-radius:6px; white-space:nowrap; display:none; }
+  .box.on .tag { display:block; }
+  .box.brace .tag { background:var(--brace); }
+  .opt { font-size:12px; color:var(--muted); margin:2px 6px 10px; }
+  .opt input { vertical-align:-1px; }
+</style>
+</head>
+<body>
+<header><h1>sample.png <span>· 13 callouts · 3 braces</span></h1></header>
+<div class="wrap">
+  <aside>
+    <label class="opt"><input type="checkbox" id="showall"> show all boxes</label>
+    <h2>Callout numbers</h2>
+    <div id="list"></div>
+    <div id="bracelist"></div>
+  </aside>
+  <main id="main">
+    <div class="stage" id="stage"><img src="sample.png" alt="diagram"></div>
+    <div class="tools">
+      <button id="zout" title="Zoom out">−</button>
+      <button id="fit" class="fit" title="Fit to view">Fit</button>
+      <button id="zin" title="Zoom in">+</button>
+    </div>
+  </main>
+</div>
+<script>
+const DATA = {"imgW": 1024, "imgH": 890, "boxes": [{"id": "d0", "kind": "callout", "text": "8", "x": 75.5859375, "y": 7.303370786516854, "w": 1.07421875, "h": 1.9101123595505618, "siblings": ["d0", "d4"]}, {"id": "d1", "kind": "callout", "text": "10", "x": 91.40625, "y": 10.0, "w": 2.1484375, "h": 1.9101123595505618, "siblings": ["d1"]}, {"id": "d2", "kind": "callout", "text": "7", "x": 67.87109375, "y": 12.247191011235955, "w": 1.171875, "h": 1.9101123595505618, "siblings": ["d2", "d5"]}, {"id": "d3", "kind": "callout", "text": "11", "x": 93.45703125, "y": 38.764044943820224, "w": 1.7578125, "h": 1.9101123595505618, "siblings": ["d3"]}, {"id": "d4", "kind": "callout", "text": "8", "x": 82.51953125, "y": 44.9438202247191, "w": 1.07421875, "h": 2.0224719101123596, "siblings": ["d0", "d4"]}, {"id": "d5", "kind": "callout", "text": "7", "x": 67.96875, "y": 54.606741573033716, "w": 1.171875, "h": 1.9101123595505618, "siblings": ["d2", "d5"]}, {"id": "d6", "kind": "callout", "text": "1", "x": 53.90625, "y": 70.11235955056179, "w": 0.390625, "h": 1.9101123595505618, "siblings": ["d6"]}, {"id": "d7", "kind": "callout", "text": "4", "x": 33.984375, "y": 77.07865168539327, "w": 1.171875, "h": 1.9101123595505618, "siblings": ["d7"]}, {"id": "d8", "kind": "callout", "text": "5", "x": 19.43359375, "y": 86.85393258426967, "w": 1.171875, "h": 2.0224719101123596, "siblings": ["d8"]}, {"id": "d9", "kind": "callout", "text": "6", "x": 11.42578125, "y": 92.24719101123596, "w": 1.07421875, "h": 1.9101123595505618, "siblings": ["d9"]}, {"id": "d10", "kind": "callout", "text": "2", "x": 61.71875, "y": 10.786516853932584, "w": 1.07421875, "h": 1.9101123595505618, "siblings": ["d10"]}, {"id": "d11", "kind": "callout", "text": "9", "x": 89.16015625, "y": 11.797752808988763, "w": 1.171875, "h": 2.0224719101123596, "siblings": ["d11"]}, {"id": "d12", "kind": "callout", "text": "3", "x": 27.44140625, "y": 81.34831460674158, "w": 1.07421875, "h": 1.9101123595505618, "siblings": ["d12"]}, {"id": "b0", "kind": "brace", "text": "brace", "x": 49.31640625, "y": 5.617977528089887, "w": 29.6875, "h": 20.56179775280899, "siblings": ["b0"]}, {"id": "b1", "kind": "brace", "text": "brace", "x": 9.27734375, "y": 44.04494382022472, "w": 76.85546875, "h": 51.91011235955057, "siblings": ["b1"]}, {"id": "b2", "kind": "brace", "text": "brace", "x": 13.8671875, "y": 80.33707865168539, "w": 8.88671875, "h": 6.741573033707865, "siblings": ["b2"]}], "callouts": [{"text": "1", "ids": ["d6"]}, {"text": "2", "ids": ["d10"]}, {"text": "3", "ids": ["d12"]}, {"text": "4", "ids": ["d7"]}, {"text": "5", "ids": ["d8"]}, {"text": "6", "ids": ["d9"]}, {"text": "7", "ids": ["d2", "d5"]}, {"text": "8", "ids": ["d0", "d4"]}, {"text": "9", "ids": ["d11"]}, {"text": "10", "ids": ["d1"]}, {"text": "11", "ids": ["d3"]}], "braces": ["b0", "b1", "b2"]};
+const NW = DATA.imgW, NH = DATA.imgH;       // natural image size in px
+const main = document.getElementById('main');
+const stage = document.getElementById('stage');
+const boxEl = {}, boxOf = {}, itemOf = {};  // id -> element, id -> box data, id -> sidebar key
+stage.style.width = NW + 'px'; stage.style.height = NH + 'px';
+
+function hi(ids, on) {
+  for (const id of ids) {
+    if (boxEl[id]) boxEl[id].classList.toggle('on', on);
+    const it = document.querySelector('.item[data-key="' + itemOf[id] + '"]');
+    if (it) it.classList.toggle('on', on);
+  }
+}
+for (const b of DATA.boxes) {
+  const d = document.createElement('div');
+  d.className = 'box ' + b.kind;
+  d.style.left = b.x + '%'; d.style.top = b.y + '%';
+  d.style.width = b.w + '%'; d.style.height = b.h + '%';
+  d.innerHTML = '<span class="tag">' + b.text + '</span>';
+  stage.appendChild(d);
+  boxEl[b.id] = d; boxOf[b.id] = b;
+  // siblings = every box sharing this number (so both "7"s light together)
+  d.addEventListener('mouseenter', () => hi(b.siblings, true));
+  d.addEventListener('mouseleave', () => hi(b.siblings, false));
+}
+
+// --- pan / zoom: a single transform on #stage (boxes ride along) ---
+let scale = 1, tx = 0, ty = 0, fitScale = 1;
+const MAX = 8;
+function apply() { stage.style.transform = 'translate(' + tx + 'px,' + ty + 'px) scale(' + scale + ')'; }
+function clampScale(s) { return Math.max(fitScale, Math.min(MAX, s)); }
+function fit() {
+  const r = main.getBoundingClientRect();
+  fitScale = Math.min(r.width / NW, r.height / NH) * 0.96;
+  scale = fitScale;
+  tx = (r.width - NW * scale) / 2;
+  ty = (r.height - NH * scale) / 2;
+  apply();
+}
+// zoom around a focal point given in main-client coords
+function zoomTo(s, cx, cy) {
+  s = clampScale(s);
+  const ix = (cx - tx) / scale, iy = (cy - ty) / scale;  // image point under focus
+  scale = s; tx = cx - ix * scale; ty = cy - iy * scale;
+  apply();
+}
+function zoomCenter(factor) {
+  const r = main.getBoundingClientRect();
+  zoomTo(scale * factor, r.width / 2, r.height / 2);
+}
+// center a box in the viewport (scroll-to-element); zoom in a bit if very small
+function focusBox(id) {
+  const b = boxOf[id]; if (!b) return;
+  const r = main.getBoundingClientRect();
+  const px = (b.x + b.w / 2) / 100 * NW, py = (b.y + b.h / 2) / 100 * NH;
+  scale = clampScale(Math.max(scale, fitScale * 2.2));
+  tx = r.width / 2 - px * scale; ty = r.height / 2 - py * scale;
+  stage.classList.add('animate'); apply();
+  setTimeout(() => stage.classList.remove('animate'), 400);
+}
+
+main.addEventListener('wheel', e => {
+  e.preventDefault();
+  const r = main.getBoundingClientRect();
+  const factor = Math.exp(-e.deltaY * 0.0015);
+  zoomTo(scale * factor, e.clientX - r.left, e.clientY - r.top);
+}, { passive: false });
+
+let drag = null;
+stage.addEventListener('pointerdown', e => {
+  drag = { x: e.clientX, y: e.clientY, tx, ty };
+  stage.classList.add('dragging'); stage.setPointerCapture(e.pointerId);
+});
+stage.addEventListener('pointermove', e => {
+  if (!drag) return;
+  tx = drag.tx + (e.clientX - drag.x); ty = drag.ty + (e.clientY - drag.y); apply();
+});
+stage.addEventListener('pointerup', e => {
+  drag = null; stage.classList.remove('dragging');
+  try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
+});
+
+document.getElementById('zin').addEventListener('click', () => zoomCenter(1.3));
+document.getElementById('zout').addEventListener('click', () => zoomCenter(1 / 1.3));
+document.getElementById('fit').addEventListener('click', fit);
+let userZoomed = false;
+main.addEventListener('wheel', () => userZoomed = true, { passive: true });
+stage.addEventListener('pointerdown', () => userZoomed = true);
+addEventListener('resize', () => { if (!userZoomed) fit(); });
+
+function makeItem(key, label, ids, kind) {
+  const el = document.createElement('div');
+  el.className = 'item ' + kind;
+  el.dataset.key = key;
+  ids.forEach(id => itemOf[id] = key);
+  el.innerHTML = '<span class="num">' + label + '</span>' +
+                 (ids.length > 1 ? '<span class="cnt">×' + ids.length + '</span>' : '');
+  el.addEventListener('mouseenter', () => hi(ids, true));
+  el.addEventListener('mouseleave', () => hi(ids, false));
+  el.addEventListener('click', () => { userZoomed = true; focusBox(ids[0]); });
+  return el;
+}
+const list = document.getElementById('list');
+for (const g of DATA.callouts) list.appendChild(makeItem('c_' + g.text, g.text, g.ids, 'callout'));
+const bl = document.getElementById('bracelist');
+if (DATA.braces.length) {
+  const h = document.createElement('h2'); h.textContent = 'Braces'; bl.appendChild(h);
+  DATA.braces.forEach((id, i) => bl.appendChild(makeItem('br_' + id, 'brace ' + (i + 1), [id], 'brace')));
+}
+document.getElementById('showall').addEventListener('change', e =>
+  document.body.classList.toggle('showall', e.target.checked));
+
+fit();
+</script>
+</body>
+</html>
