@@ -1,5 +1,6 @@
 <div align="center">
-<h1>Tool for digit detection & recognition</h1>
+<h1>parts-diagram-ocr</h1>
+<p>OCR for callout numbers on ETKA exploded-view auto-parts diagrams</p>
 </div>
 <hr/>
 
