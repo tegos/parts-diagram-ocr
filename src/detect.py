@@ -15,6 +15,7 @@ from pathlib import Path
 
 import cv2
 
+from src.braces import associate, detect_braces
 from src.config import IMAGES_DIR, OUT_DIR
 from src.pipeline import detect, draw_overlay
 
@@ -31,14 +32,16 @@ def process(path, write_overlay=True):
         return None
     gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
     dets = detect(gray)
+    braces = detect_braces(gray)
+    groups = associate(braces, dets, gray.shape[1], gray.shape[0])
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    (OUT_DIR / f"{path.stem}.json").write_text(
-        json.dumps({"image": path.name, "detections": dets}, indent=2))
+    (OUT_DIR / f"{path.stem}.json").write_text(json.dumps(
+        {"image": path.name, "detections": dets, "groups": groups}, indent=2))
     if write_overlay:
         cv2.imwrite(str(OUT_DIR / f"{path.stem}_overlay.png"),
-                    draw_overlay(bgr, dets))
-    return dets
+                    draw_overlay(bgr, dets, groups))
+    return dets, groups
 
 
 def main(argv):
@@ -54,17 +57,20 @@ def main(argv):
 
     t0 = time.time()
     total = 0
+    total_groups = 0
     for p in paths:
-        dets = process(p, write_overlay)
-        if dets is None:
+        res = process(p, write_overlay)
+        if res is None:
             continue
+        dets, groups = res
         total += len(dets)
+        total_groups += len(groups)
         nums = ", ".join(d["text"] for d in sorted(dets, key=lambda d: d["bbox"][1]))
-        print(f"{p.name}: {len(dets)} callouts  [{nums}]")
+        print(f"{p.name}: {len(dets)} callouts, {len(groups)} groups  [{nums}]")
 
     dt = time.time() - t0
-    print(f"\n{len(paths)} image(s), {total} callouts, {dt:.1f}s "
-          f"({dt / max(1, len(paths)):.1f}s/img). JSON -> {OUT_DIR}")
+    print(f"\n{len(paths)} image(s), {total} callouts, {total_groups} groups, "
+          f"{dt:.1f}s ({dt / max(1, len(paths)):.1f}s/img). JSON -> {OUT_DIR}")
     return 0
 
 

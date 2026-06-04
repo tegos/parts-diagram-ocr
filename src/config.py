@@ -4,7 +4,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 IMAGES_DIR = DATA_DIR / "images"
-SAMPLES_DIR = DATA_DIR / "samples"
 OUT_DIR = DATA_DIR / "out"
 
 # --- glyph candidate filter (connected components, absolute px) ---
@@ -26,7 +25,9 @@ ISO_MAX_INK = 0.12     # max black-pixel ratio allowed in the ring
 RECOG_PAD = 6          # px padding around crop before recognition
 RECOG_UPSCALE = 4.0    # upscale crop for the recognizer
 MIN_CONFIDENCE = 0.55  # drop low-confidence reads
-DIGIT_RANGE = (1, 99)  # callouts are part-index numbers
+DIGIT_RANGE = (1, 199)  # numeric part of a callout; some catalogs exceed 100
+ALLOWLIST = "0123456789AB"  # ETKA callouts can carry an A/B suffix (1A, 4A, 16A, 1B)
+SUFFIXES = "AB"        # accepted trailing letters
 NMS_IOU = 0.5          # dedup overlapping detections
 
 DEBUG = True
