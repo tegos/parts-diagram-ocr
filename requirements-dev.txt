@@ -1,0 +1,4 @@
+# Dev/test deps. Install: .venv/bin/pip install -r requirements-dev.txt
+# Then `playwright install chromium` if the browser isn't already cached.
+pytest>=8.0
+playwright>=1.60   # headless self-verify of the HTML viewer (scripts/verify_viewer.py)
