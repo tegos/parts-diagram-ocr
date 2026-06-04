@@ -3,7 +3,8 @@
 **Status:** accepted (Phase 1, 2026-06-04)
 
 ## Context
-Input: ETKA exploded-view auto-parts diagrams — clean black line art on white.
+Input: exploded-view spare-parts diagrams from major parts catalogs — raster
+(PNG) clean black line art on white.
 Task: detect callout numbers (1..~99) at the ends of leader lines, grouped by
 `{` braces. Numbers are small, isolated, scattered around the periphery.
 

@@ -26,7 +26,7 @@ RECOG_PAD = 6          # px padding around crop before recognition
 RECOG_UPSCALE = 4.0    # upscale crop for the recognizer
 MIN_CONFIDENCE = 0.55  # drop low-confidence reads
 DIGIT_RANGE = (1, 199)  # numeric part of a callout; some catalogs exceed 100
-ALLOWLIST = "0123456789AB"  # ETKA callouts can carry an A/B suffix (1A, 4A, 16A, 1B)
+ALLOWLIST = "0123456789AB"  # callouts can carry an A/B suffix (1A, 4A, 16A, 1B)
 SUFFIXES = "AB"        # accepted trailing letters
 NMS_IOU = 0.5          # dedup overlapping detections
 

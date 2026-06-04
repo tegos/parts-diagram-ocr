@@ -3,7 +3,7 @@
 **Status:** accepted (Phase 3, 2026-06-04)
 
 ## Context
-User wants part ↔ number association. ETKA diagrams encode grouping with a tall
+User wants part ↔ number association. Parts-catalog diagrams encode grouping with a tall
 `{` brace: a group-id callout on the brace's outer side, member callouts in the
 adjacent column on the inner side.
 
@@ -40,7 +40,7 @@ verticals that are otherwise tall and thin (460127200: 4 → 2 candidates).
 - Nested braces double-count: a sub-group's members also appear in the enclosing
   group (194500200: 12A in both grp 6 and grp 21).
 - Interior duplicate misreads (one number read 2-3× from drawing features).
-- Per-layout variation in ETKA brackets not fully handled.
+- Per-layout variation in catalog brackets not fully handled.
 - Alphanumeric ids: A/B suffixes now recognized (allowlist `0-9AB` + `valid_callout`
   regex `\d{1,3}[AB]?`); fixed 1A/1B/16A on 121105250. A occasionally still lost
   when its glyph is faint/detached (4A → 4). Other suffix letters not handled.
