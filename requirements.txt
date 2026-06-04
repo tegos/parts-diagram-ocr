@@ -1,9 +1,6 @@
-image==1.5.27
-imutils==0.5.1
-numpy==1.15.2
-opencv-python==3.4.3.18
-Pillow==5.3.0
-pytz==2018.5
-scikit-learn==0.20.0
-scipy==1.1.0
-sklearn==0.0
+# Base — Python 3.12. OCR engine chosen in Phase 1: EasyOCR (recognition only,
+# inside a connected-components hybrid). See docs/adr/0001-ocr-approach.md.
+numpy>=2.0
+opencv-python>=4.10
+Pillow>=10.4
+easyocr>=1.7   # pulls torch (CPU)
