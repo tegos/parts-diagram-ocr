@@ -61,28 +61,26 @@ def associate(braces, dets, image_width):
     groups = []
     for (bx, by, bw, bh) in braces:
         mid_y = by + bh / 2.0
-        bx_inner = bx + bw
-        opens_right = (bx + bw / 2.0) < image_width / 2.0
+        bx_c = bx + bw / 2.0                       # split on the brace centre:
+        opens_right = bx_c < image_width / 2.0     # the number column straddles the edge
 
         inner, outer = [], []
         for d in dets:
             if not (by <= _cy(d) <= by + bh):
                 continue
-            if opens_right:
-                is_inner, dx = _cx(d) > bx_inner, _cx(d) - bx_inner
-            else:
-                is_inner, dx = _cx(d) < bx, bx - _cx(d)
-            if is_inner:
-                if 0 <= dx <= member_dx:           # only the adjacent column
+            off = _cx(d) - bx_c                     # +ve = right of brace
+            dx = off if opens_right else -off       # signed toward the inner side
+            if dx > 0:
+                if dx <= member_dx:                 # the adjacent column only
                     inner.append(d)
             else:
                 outer.append(d)
 
-        # group-id: outer-side detection near mid-height, just outside the brace
+        # group-id: outer-side detection near mid-height, just outside the spine
         band = GROUP_MIDBAND * bh
         cand = [d for d in outer
-                if abs(_cy(d) - mid_y) <= band and abs(_cx(d) - bx) <= group_dx]
-        group = min(cand, key=lambda d: abs(_cx(d) - bx)) if cand else None
+                if abs(_cy(d) - mid_y) <= band and abs(_cx(d) - bx_c) <= group_dx]
+        group = min(cand, key=lambda d: abs(_cx(d) - bx_c)) if cand else None
 
         if not inner:
             continue
