@@ -36,8 +36,9 @@ def test_nms_drops_overlap_keeps_best():
 def test_valid_number():
     assert valid_number("7")
     assert valid_number("29")
+    assert valid_number("116")        # catalogs exceed 100
     assert not valid_number("0")
     assert not valid_number("012")   # leading zero
-    assert not valid_number("100")   # out of range
+    assert not valid_number("250")   # out of range
     assert not valid_number("")
     assert not valid_number("1a")

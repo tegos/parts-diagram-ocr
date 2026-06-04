@@ -26,7 +26,7 @@ ISO_MAX_INK = 0.12     # max black-pixel ratio allowed in the ring
 RECOG_PAD = 6          # px padding around crop before recognition
 RECOG_UPSCALE = 4.0    # upscale crop for the recognizer
 MIN_CONFIDENCE = 0.55  # drop low-confidence reads
-DIGIT_RANGE = (1, 99)  # callouts are part-index numbers
+DIGIT_RANGE = (1, 199)  # callouts are part-index numbers; some catalogs exceed 100
 NMS_IOU = 0.5          # dedup overlapping detections
 
 DEBUG = True
