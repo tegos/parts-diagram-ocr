@@ -3,10 +3,12 @@
 <p>Detect callout numbers and their grouping braces on exploded-view spare-parts diagrams.</p>
 
 <a href="https://tegos.github.io/parts-diagram-ocr/sample.html">
-  <img src="assets/hero.webp" alt="interactive viewer: fit, zoom, pan and click-to-focus a callout" width="800">
+  <img src="assets/hero.webp" alt="interactive viewer: fit, zoom, pan, click-to-focus a callout and magenta group highlighting" width="800">
 </a>
 
-<sub><b><a href="https://tegos.github.io/parts-diagram-ocr/sample.html">▶ Open the live interactive viewer</a></b> — fit · wheel-zoom · drag-pan · click a number to fly to its part</sub>
+<sub><b><a href="https://tegos.github.io/parts-diagram-ocr/sample.html">▶ Open the live interactive viewer</a></b> — fit · wheel-zoom · drag-pan · click a number to fly to its part · hover a group to light its members</sub>
+<br>
+<sub>more live pages: <a href="https://tegos.github.io/parts-diagram-ocr/710501100.html">710501100</a> · <a href="https://tegos.github.io/parts-diagram-ocr/121105250.html">121105250</a> · <a href="https://tegos.github.io/parts-diagram-ocr/689615500.html">689615500</a></sub>
 </div>
 
 ---
