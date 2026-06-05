@@ -32,3 +32,16 @@ def test_member_pr_empty():
     assert member_pr([], []) == (1.0, 1.0)        # id-only group, none detected: clean
     assert member_pr(["3"], []) == (1.0, 0.0)     # nothing detected: precise, zero recall
     assert member_pr([], ["3"]) == (0.0, 1.0)     # phantom members
+
+
+def test_stage_timer_accumulates():
+    from src.detect import StageTimer
+    t = StageTimer()
+    with t.stage("a"):
+        pass
+    with t.stage("a"):
+        pass
+    with t.stage("b"):
+        pass
+    assert set(t.acc) == {"a", "b"}
+    assert t.acc["a"] >= 0 and t.acc["b"] >= 0
