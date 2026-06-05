@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from src.braces import (OPEN_SPAN_PAD, _cx, _cy, _sharp_corners,
+from src.braces import (OPEN_SPAN_PAD, _cx, _cy, _notch_side, _sharp_corners,
                         _sharp_vertices, associate, detect_braces,
                         detect_open_braces)
 from src.glyphs import binarize_inv
@@ -35,7 +35,7 @@ def main(stems):
         heights = sorted(d["bbox"][3] - d["bbox"][1] for d in dets)
         med_h = heights[len(heights) // 2] if heights else 0
 
-        # ---- axis-aligned path: per bound brace, sharp-corner count ----
+        # ---- axis-aligned path: per bound brace, corner + notch metrics ----
         closed = detect_braces(gray, binv)
         for g in associate(closed, dets, W, H):
             bx0, by0, bx1, by1 = g["brace_bbox"]
@@ -45,10 +45,29 @@ def main(stems):
             area = int(stats[idx][4]) if idx is not None else -1
             fill = area / float(box[2] * box[3]) if idx is not None else -1
             tag = "TRUE " if g["group"] in gt_groups else "FALSE"
+
+            horizontal = box[2] >= box[3]
+            if horizontal:
+                span0, span1 = bx0, bx1
+                along, perp, perp_c = _cx, _cy, (by0 + by1) / 2.0
+            else:
+                span0, span1 = by0, by1
+                along, perp, perp_c = _cy, _cx, (bx0 + bx1) / 2.0
+            notch = (_notch_side(labels, idx, box, horizontal)
+                     if idx is not None else None)
+            n_side = "+" if notch and notch[0] > 0 else "-" if notch else "?"
+            n_depth = notch[1] / med_h if notch and med_h else -1
+            cur_side = ("+" if perp({"bbox": g["group_bbox"]}) - perp_c > 0
+                        else "-")
+            in_span = " ".join(
+                f"{d['text']}{'+' if perp(d) - perp_c > 0 else '-'}"
+                for d in dets if span0 <= along(d) <= span1)
             print(f"{stem:<12} AXIS {tag} id={g['group']:<4} "
                   f"corners={corners:3d} long={max(box[2], box[3]):4d} "
                   f"area={area:5d} fill={fill:.3f} "
-                  f"members={len(g['members'])}")
+                  f"members={len(g['members'])} "
+                  f"notch={n_side}{n_depth:5.2f} cur_id_side={cur_side} "
+                  f"in_span=[{in_span}]")
 
         # ---- diagonal path: spine/prong/id-dist in digit heights ----
         obs = detect_open_braces(gray, binv, exclude=closed)
