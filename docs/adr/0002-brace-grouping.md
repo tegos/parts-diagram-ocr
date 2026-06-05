@@ -142,7 +142,7 @@ fixed diagonal false groups, all axis-aligned-path issues:
 - **Id-side swaps on real braces**: when the id label sits on the member side
   visually (24{25} read as 25{24,27}; 12{14} as 14{12}; 2{3} as 3{2};
   6{8}/5{8} as 8{6}/8{5}; 15A{22} as 22{15A}), `associate` picks the wrong
-  side. The brace is right, the id is not.
+  side. The brace is right, the id is not. Fixed — see the notch-geometry update below.
 - **Missed id-only V-braces**: short brackets grouping unlabeled parts
   (656311410 has four: 9, 15, 18, 25) fall under `BRACE_MIN_LONG` or read as
   1-corner strokes.
@@ -152,9 +152,26 @@ fixed diagonal false groups, all axis-aligned-path issues:
 These are recall/member-precision costs, documented and measured; fixing the
 id-side rule is the highest-value next step.
 
+## Update (id-side swaps fixed — notch geometry)
+The count-vote ("side with more aligned callouts = members") swapped id and
+members whenever one member faced one id. The eval listed 6 such cases; the
+measurement below found 8 (also 194103550 14A{13A,15A,20} emitted as 20{...},
+and 409311910 8{8A} as 8A{...}). Catalogs draw the id on the brace's NOTCH
+side — the `{` mid-cusp and the V apex point at it. Measured on every bound
+axis brace of the 20-image GT set (33 braces, 29 with a measurable notch):
+the notch sits on the GT id side in 29/29 cases — all 8 swaps (depths
+0.75–0.97 digit heights) and all 20 correctly-bound braces (0.57–0.96), zero
+counter-examples. `associate` now takes `binv`, locates the deepest central
+sharp vertex (same end-cap-excluding machinery as the diagonal path), and
+routes the id pool to the notch side when depth ≥ `NOTCH_MIN_DEPTH = 0.5`
+digit heights; otherwise the count-vote fallback keeps no-notch braces
+(small 1-corner V-braces, fragments) byte-identical. Groups: P83/R69/F75 →
+**P91/R82/F86**. Callouts untouched (associate runs after OCR; verified
+only the `groups` JSON key changed across all 20 images).
+
 ## Known limitations / future work
-- Axis-aligned association: fragment binds, id-side swaps, missed small
-  V-braces (see group-eval update above) — the dominant group-eval cost now.
+- Axis-aligned association: fragment binds and missed small V-braces remain
+  (see group-eval update above); id-side swaps fixed by the notch rule.
 - Nested braces double-count: a sub-group's members also appear in the enclosing
   group (194500200: 12A in both grp 6 and grp 21).
 - Interior duplicate misreads (one number read 2-3× from drawing features).
