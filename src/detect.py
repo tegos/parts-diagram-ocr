@@ -15,7 +15,8 @@ from pathlib import Path
 
 import cv2
 
-from src.braces import associate, detect_braces, detect_open_braces
+from src.braces import (associate, associate_open, detect_braces,
+                        detect_open_braces)
 from src.glyphs import binarize_inv
 from src.config import IMAGES_DIR, OUT_DIR
 from src.pipeline import detect, draw_overlay
@@ -37,6 +38,8 @@ def process(path, write_overlay=True):
     braces = detect_braces(gray, binv)
     groups = associate(braces, dets, gray.shape[1], gray.shape[0])
     open_braces = detect_open_braces(gray, binv, exclude=braces)
+    groups += associate_open(open_braces, dets, binv,
+                             gray.shape[1], gray.shape[0])
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / f"{path.stem}.json").write_text(json.dumps(

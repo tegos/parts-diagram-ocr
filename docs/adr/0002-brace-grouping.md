@@ -96,6 +96,31 @@ real progress now needs brace ground truth, not heuristics.
 remain in the JSON (`open_braces`) and in the interactive viewer, which shows
 them on demand (hover / showall) rather than permanently.
 
+## Update (diagonal braces auto-numbered — `associate_open`)
+The Phase 3b blockers fell: the narrow "1" reads as a callout (ADR 0001), and
+the prong machinery (sharp corners) locates the id notch. Measured on every
+true diagonal brace (5 images, 12 braces), the geometry is uniform **in digit
+heights** — the only scale stable across catalogs (image-dim fractions broke:
+a 0.03×dim member band swallowed the id on large diagrams):
+
+- id sits 0.7–1.0 digit-heights from the prong tip (false bindings: 1.5–4.8);
+  gate `OPEN_ID_REACH = 1.3`;
+- members hug the spine at 0.6–1.6 on the opposite side from the id
+  (unrelated callouts: 8+); gate `OPEN_MEMBER_REACH = 4.5`;
+- the prong tip is the deepest sharp vertex in the **central 80 % of the
+  span** — stroke end-caps masquerade as deep vertices (the PCA-endpoint trap
+  Phase 3b documented);
+- the brace's component is matched by **exact bbox** in the full-image
+  labeling — "largest component in the box" grabbed part contours overlapping
+  big braces' bboxes.
+
+Members may be empty: some braces group parts that carry no callout digits of
+their own (sample grp 5 — washers/nuts identified only by the group id), so an
+id alone binds. Accepted cost, eyeballed across all 100 images: 2 false groups
+(645845000 — a door-glass contour with a stray "6" near a corner; 258133860 —
+a hose-clamp fragment with "2" adjacent), against ~16 true diagonal groups
+bound. sample.png reports all 3 of its groups.
+
 ## Known limitations / future work
 - Nested braces double-count: a sub-group's members also appear in the enclosing
   group (194500200: 12A in both grp 6 and grp 21).

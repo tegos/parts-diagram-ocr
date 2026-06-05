@@ -46,6 +46,16 @@ OPEN_MUTUAL_IOU = 0.35     # candidates whose bboxes overlap this much are
 GROUP_MIDBAND = 0.30       # group-id near brace tip (fraction of span length)
 MEMBER_REACH = 0.13        # member row/column distance (fraction of perp image dim)
 GROUP_REACH = 0.10         # group-id distance from spine (fraction of perp image dim)
+# diagonal-brace association tolerances, in units of DIGIT HEIGHT -- the only
+# scale that holds across catalogs (image-dim fractions break: a 0.03*2300px
+# member band swallows the id on large diagrams). Measured on every true brace
+# (5 images, 12 braces): id sits 0.7-1.0 digit-heights from the prong tip
+# (false bindings: 1.5-4.8), members hug the spine at 0.6-1.6 on the opposite
+# side from the id (unrelated callouts: 8+).
+OPEN_ID_REACH = 1.3        # max dist(prong tip, id centre) / id height
+OPEN_MEMBER_REACH = 4.5    # max |spine offset| / median digit height for members
+OPEN_MEMBER_SIDE = 1.0     # members may poke at most this far onto the id side
+OPEN_SPAN_PAD = 10         # px slack at the spine's ends for the span test
 
 
 def detect_braces(gray, binv=None):
@@ -146,6 +156,112 @@ def detect_open_braces(gray, binv=None, exclude=()):
            if not any(c is not b and iou(_xyxy(b), _xyxy(c)) >= OPEN_MUTUAL_IOU
                       for c in cand)]
     return out
+
+
+def _sharp_vertices(mask):
+    """approxPolyDP vertices with a sharp direction change (same parameters as
+    _sharp_corners), as float (x, y) points in mask coordinates."""
+    cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    pts = cv2.approxPolyDP(max(cnts, key=cv2.contourArea), 4, False)[:, 0, :]
+    pts = pts.astype(np.float64)
+    out = []
+    for i in range(1, len(pts) - 1):
+        v1, v2 = pts[i - 1] - pts[i], pts[i + 1] - pts[i]
+        n1, n2 = np.linalg.norm(v1), np.linalg.norm(v2)
+        if n1 < 8 or n2 < 8:
+            continue
+        ang = np.degrees(np.arccos(np.clip(v1 @ v2 / (n1 * n2), -1, 1)))
+        if ang < 140:
+            out.append(pts[i])
+    return out
+
+
+def associate_open(open_braces, dets, binv, image_width, image_height):
+    """Bind diagonal open-line braces to a group id + members.
+
+    Measured geometry (sample.png + 4 catalog images, 12 true braces): the
+    brace is a long diagonal SPINE spanning the grouped parts, with a short
+    PRONG off the spine pointing at the group id; the id sits within ~1 digit
+    height of the prong tip, member callouts hug the spine within its span on
+    the opposite side. Axis-agnostic via PCA: the spine is the component's
+    principal axis, sides are perpendicular projections. All tolerances are in
+    digit heights -- the only scale stable across catalogs.
+
+    Returns groups in associate()'s format. The id is required; members may be
+    empty -- some braces group parts that carry no callout digits of their own
+    (sample grp 5: washers/nuts identified only by the group id). A brace with
+    no id near its prong tip stays unbound (JSON `open_braces` only).
+    """
+    # one labeling of the full image; each brace box IS a component's bbox
+    # (detect_open_braces emits one box per component), so match it exactly --
+    # picking "the largest component inside the box" can grab a part contour
+    # that merely overlaps a big brace's bbox.
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
+    by_bbox = {tuple(int(v) for v in stats[i][:4]): i for i in range(1, n)}
+
+    groups = []
+    for (bx, by, bw, bh) in open_braces:
+        idx = by_bbox.get((bx, by, bw, bh))
+        if idx is None:
+            continue
+        ys, xs = np.nonzero(labels[by:by + bh, bx:bx + bw] == idx)
+        pts = np.column_stack([xs, ys]).astype(np.float64)
+        c = pts.mean(0)
+        _, _, vt = np.linalg.svd(pts - c, full_matrices=False)
+        u, v = vt[0], vt[1]                      # spine axis, perpendicular
+        proj = (pts - c) @ u
+        s0, s1 = proj.min() - OPEN_SPAN_PAD, proj.max() + OPEN_SPAN_PAD
+
+        # prong tip: deepest sharp vertex off the spine, ends excluded -- the
+        # caps of a thick stroke read as sharp vertices with a big excursion
+        # (the documented PCA-endpoint trap), so only the central 80% of the
+        # span may vote.
+        lo, hi = s0 + 0.1 * (s1 - s0), s1 - 0.1 * (s1 - s0)
+        sharp = [p for p in _sharp_vertices((labels[by:by + bh, bx:bx + bw] == idx).astype("uint8"))
+                 if lo <= (p - c) @ u <= hi]
+        if not sharp:
+            continue
+        tip = max(sharp, key=lambda p: abs((p - c) @ v))
+        tip_side = 1.0 if (tip - c) @ v > 0 else -1.0
+        tip_g = np.array([bx, by], float) + tip
+        origin = np.array([bx, by], float) + c
+
+        heights = sorted(d["bbox"][3] - d["bbox"][1] for d in dets)
+        med_h = heights[len(heights) // 2] if heights else 0
+        if not med_h:
+            continue
+
+        # the id: nearest callout to the prong tip, on the prong side, within
+        # OPEN_ID_REACH of ITS OWN height (scale-free across catalogs)
+        group, best = None, None
+        in_span = []
+        for d in dets:
+            ctr = np.array([_cx(d), _cy(d)]) - origin
+            along, off = ctr @ u, ctr @ v
+            if not (s0 <= along <= s1):
+                continue
+            in_span.append((d, off))
+            if off * tip_side > 0:
+                dist = np.linalg.norm(np.array([_cx(d), _cy(d)]) - tip_g)
+                if dist <= OPEN_ID_REACH * (d["bbox"][3] - d["bbox"][1]) \
+                        and (best is None or dist < best):
+                    group, best = d, dist
+        if group is None:
+            continue
+
+        # members hug the spine on the opposite side from the id (may poke
+        # slightly onto the id side); may be empty -- see docstring
+        members = [d for (d, off) in in_span
+                   if d is not group
+                   and abs(off) <= OPEN_MEMBER_REACH * med_h
+                   and off * tip_side <= OPEN_MEMBER_SIDE * med_h]
+        groups.append({
+            "group": group["text"],
+            "group_bbox": group["bbox"],
+            "brace_bbox": [bx, by, bx + bw, by + bh],
+            "members": [{"text": d["text"], "bbox": d["bbox"]} for d in members],
+        })
+    return groups
 
 
 def _cx(b):
