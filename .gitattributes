@@ -1,0 +1,10 @@
+# Normalize all text to LF in the repo and on checkout (stops CRLF churn on WSL).
+* text=auto eol=lf
+
+# Treat binary assets as binary (no EOL/diff munging).
+*.png  binary
+*.webp binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
