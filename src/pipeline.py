@@ -3,7 +3,7 @@ import cv2
 
 from src import config as C
 from src import glyphs as G
-from src.ocr import recognize_batch
+from src.ocr import recognize_batch, recognize_split
 
 
 import re
@@ -34,7 +34,11 @@ def detect(gray):
     dets = []
     for box, (text, conf) in zip(gated, recognize_batch(gray, gated)):
         if conf < C.MIN_CONFIDENCE or not valid_callout(text):
-            continue
+            # whole-box read failed; an adjacent suffix can bias a digit
+            # (open "4"+"A" -> "AA"). Retry glyph-by-glyph, where each is clean.
+            text, conf = recognize_split(gray, binv, box)
+            if text is None or conf < C.MIN_CONFIDENCE or not valid_callout(text):
+                continue
         x, y, w, h = box
         dets.append({"text": text, "conf": round(conf, 3),
                      "bbox": [x, y, x + w, y + h]})

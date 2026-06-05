@@ -1,5 +1,5 @@
 """EasyOCR wrapper — recognition only (detection is done by connected components)."""
-from src.config import ALLOWLIST, RECOG_PAD
+from src.config import ALLOWLIST, GLYPH_MIN_AREA, RECOG_PAD
 
 _reader = None
 
@@ -35,6 +35,38 @@ def recognize_batch(gray, boxes):
         return [(_clean(t), float(c)) for (_b, t, c) in res]
     # rare misalignment: fall back to per-box reads
     return [recognize(gray, b) for b in boxes]
+
+
+def recognize_split(gray, binv, box, max_glyphs=4):
+    """Read a number box one glyph at a time and concatenate, as a fallback.
+
+    EasyOCR can misread a digit when an adjacent suffix biases it: an open-top
+    "4" next to an "A" reads as "AA", while each glyph in isolation reads
+    cleanly. Splits the box into its connected components (left-to-right) and
+    recognizes each alone. Returns (None, 0.0) when splitting can't help — a
+    single component (whole == part) or more glyphs than a callout can hold
+    (3 digits + 1 suffix). Group confidence is the weakest glyph's.
+    """
+    import cv2
+    x, y, w, h = box
+    n, _, stats, _ = cv2.connectedComponentsWithStats(binv[y:y + h, x:x + w],
+                                                      connectivity=8)
+    ccs = []
+    for i in range(1, n):
+        cx, cy, cw, ch, area = (int(v) for v in stats[i])
+        if area < GLYPH_MIN_AREA:        # drop speckle, keep glyph blobs
+            continue
+        ccs.append((x + cx, y + cy, cw, ch))
+    if not (2 <= len(ccs) <= max_glyphs):
+        return None, 0.0
+    ccs.sort(key=lambda b: b[0])
+    parts = [recognize(gray, b) for b in ccs]
+    # each component must read as exactly one character; a multi-char read means
+    # the blob isn't a clean single glyph (a narrow "1" can read as "11"), so the
+    # split is unreliable -- bail rather than fabricate a longer number.
+    if any(t is None or len(t) != 1 for t, _ in parts):
+        return None, 0.0
+    return _clean("".join(t for t, _ in parts)), min(c for _, c in parts)
 
 
 def recognize(gray, box):

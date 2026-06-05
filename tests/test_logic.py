@@ -164,6 +164,54 @@ def test_nms_drops_overlap_keeps_best():
     assert {d["conf"] for d in kept} == {0.9, 0.8}
 
 
+def test_recognize_split_concatenates_isolated_glyphs(monkeypatch):
+    # whole-box OCR misreads a digit beside a suffix (open-top "4" + "A" -> "AA");
+    # the split fallback reads each connected component in isolation, where each
+    # is unambiguous, and concatenates left-to-right.
+    import src.ocr as ocr
+    binv = np.zeros((50, 100), np.uint8)
+    binv[10:40, 10:35] = 255   # left glyph (the "4")
+    binv[10:40, 55:80] = 255   # right glyph (the "A")
+    monkeypatch.setattr(ocr, "recognize",
+                        lambda gray, box: ("4", 1.0) if box[0] < 45 else ("A", 0.9))
+    text, conf = ocr.recognize_split(None, binv, (0, 0, 100, 50))
+    assert text == "4A"
+    assert conf == 0.9          # group confidence is the weakest glyph
+
+
+def test_recognize_split_skips_single_glyph(monkeypatch):
+    # one blob -> splitting can't help (whole == part); signal no result so the
+    # caller keeps the original (dropped) read instead of looping.
+    import src.ocr as ocr
+    binv = np.zeros((50, 100), np.uint8)
+    binv[10:40, 10:35] = 255
+    monkeypatch.setattr(ocr, "recognize", lambda gray, box: ("4", 1.0))
+    assert ocr.recognize_split(None, binv, (0, 0, 100, 50)) == (None, 0.0)
+
+
+def test_recognize_split_rejects_too_many_glyphs(monkeypatch):
+    # 5 blobs is not a callout (max is 3 digits + 1 suffix) -> no result.
+    import src.ocr as ocr
+    binv = np.zeros((50, 140), np.uint8)
+    for i in range(5):
+        binv[10:40, 10 + i * 25:30 + i * 25] = 255
+    monkeypatch.setattr(ocr, "recognize", lambda gray, box: ("1", 1.0))
+    assert ocr.recognize_split(None, binv, (0, 0, 140, 50)) == (None, 0.0)
+
+
+def test_recognize_split_rejects_multichar_component(monkeypatch):
+    # a single narrow blob can read as "11" in isolation; trusting it would turn
+    # a 2-blob "12" box into a bogus "112". A component that reads >1 char means
+    # the split is unreliable -> no result, keep the original read.
+    import src.ocr as ocr
+    binv = np.zeros((50, 100), np.uint8)
+    binv[10:40, 10:35] = 255
+    binv[10:40, 55:80] = 255
+    monkeypatch.setattr(ocr, "recognize",
+                        lambda gray, box: ("11", 0.9) if box[0] < 45 else ("2", 0.9))
+    assert ocr.recognize_split(None, binv, (0, 0, 100, 50)) == (None, 0.0)
+
+
 def test_valid_callout():
     assert valid_callout("7")
     assert valid_callout("29")
