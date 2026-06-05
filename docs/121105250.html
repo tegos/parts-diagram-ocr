@@ -32,7 +32,7 @@
            box-shadow:0 1px 8px rgba(0,0,0,.12); background:#fff; will-change:transform; }
   .stage.dragging { cursor:grabbing; }
   .stage.animate { transition:transform .35s cubic-bezier(.22,.61,.36,1); }
-  .stage img { display:block; user-select:none; }
+  .stage img { display:block; user-select:none; -webkit-user-drag:none; }
   .tools { position:absolute; right:14px; bottom:14px; display:flex; gap:4px;
            background:#fff; border:1px solid var(--line); border-radius:9px;
            padding:4px; box-shadow:0 1px 8px rgba(0,0,0,.14); user-select:none; }
@@ -174,6 +174,9 @@ stage.addEventListener('pointermove', e => {
 stage.addEventListener('pointerup', e => {
   drag = null; stage.classList.remove('dragging');
   try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
+});
+stage.addEventListener('pointercancel', () => {
+  drag = null; stage.classList.remove('dragging');
 });
 
 document.getElementById('zin').addEventListener('click', () => zoomCenter(1.3));
