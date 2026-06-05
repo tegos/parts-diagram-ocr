@@ -56,6 +56,13 @@ OPEN_ID_REACH = 1.3        # max dist(prong tip, id centre) / id height
 OPEN_MEMBER_REACH = 4.5    # max |spine offset| / median digit height for members
 OPEN_MEMBER_SIDE = 1.0     # members may poke at most this far onto the id side
 OPEN_SPAN_PAD = 10         # px slack at the spine's ends for the span test
+OPEN_BIND_MIN_SHARP = 5    # central sharp vertices required to BIND a brace
+                           # to a group. A true grouping bracket is pronged
+                           # along its spine: every true diagonal brace on
+                           # the 20-image GT set shows 6-9 sharp vertices in
+                           # the central 80% of the span (sample.png: 6/6/10);
+                           # the two false part-contour bindings (645845000
+                           # "6", 258133860 "2") show exactly 3. Gate at 5.
 
 
 def detect_braces(gray, binv=None):
@@ -219,7 +226,7 @@ def associate_open(open_braces, dets, binv, image_width, image_height):
         lo, hi = s0 + 0.1 * (s1 - s0), s1 - 0.1 * (s1 - s0)
         sharp = [p for p in _sharp_vertices((labels[by:by + bh, bx:bx + bw] == idx).astype("uint8"))
                  if lo <= (p - c) @ u <= hi]
-        if not sharp:
+        if len(sharp) < OPEN_BIND_MIN_SHARP:
             continue
         tip = max(sharp, key=lambda p: abs((p - c) @ v))
         tip_side = 1.0 if (tip - c) @ v > 0 else -1.0

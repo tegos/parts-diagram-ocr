@@ -19,3 +19,4 @@ scripts/make_hero.py
 # Local-only working docs (specs drafts, implementation plans)
 docs/superpowers/plans/
 docs/superpowers/specs/local/
+/.claude/
