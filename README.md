@@ -81,7 +81,7 @@ Scored against hand-labeled ground truth for 20 of the 100 dataset images
 | metric | precision | recall | F1 |
 |---|---|---|---|
 | callout numbers (set-based) | 99% | 98% | 98% |
-| groups, by id | 83% | 69% | 75% |
+| groups, by id | 91% | 82% | 86% |
 
 Callout scoring is set-based per image — did we read the right numbers — so
 duplicate reads of one number don't inflate precision; they are reported
@@ -90,7 +90,7 @@ a drawn brace's id; member-set precision/recall per matched group is printed
 alongside.
 
 Throughput: **1.0 s/image** across the full 100-image batch, 2.1 s/image on
-the (larger-than-average) 20 ground-truth images — CPU, WSL2, including a
+the (larger-than-average) 20 ground-truth images — CPU only, including a
 one-time ~25 s EasyOCR model load. `--profile` attributes ~93% of the time to
 recognizer inference; everything else (decode, binarize, brace geometry,
 writes) is noise.
@@ -110,7 +110,8 @@ words, not isolated digits), so detection is done with classic CV and only the
    Low-confidence reads retry glyph-by-glyph, recognition only — the crop is
    already the glyph, so no detector pass is needed.
 4. **Group** detected braces, binding each to its group-id + member callouts.
-   Axis-aligned `{` braces associate by row/column adjacency; braces drawn as
+   Axis-aligned `{` braces put the id on the brace's notch side (the cusp of a
+   `{`, the apex of a V point at it), members opposite; braces drawn as
    diagonal lines (open polylines) associate by prong geometry — the id sits
    within ~1 digit height of the prong tip, members hug the spine, and a brace
    only binds when it is pronged along its whole spine (part-contour fragments
