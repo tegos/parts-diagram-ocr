@@ -29,7 +29,7 @@ _TEMPLATE = """<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>__TITLE__ — detections</title>
 <style>
-  :root { --accent:#e23; --brace:#0a8; --ink:#1a1a1a; --muted:#888; --line:#e7e7e7; }
+  :root { --accent:#e23; --brace:#0a8; --group:#d0d; --ink:#1a1a1a; --muted:#888; --line:#e7e7e7; }
   * { box-sizing: border-box; }
   body { margin:0; font:14px/1.4 -apple-system,Segoe UI,Roboto,sans-serif;
          color:var(--ink); background:#f4f4f5; }
@@ -49,13 +49,14 @@ _TEMPLATE = """<!doctype html>
   .item .cnt { font-size:11px; color:var(--muted); background:#f0f0f1;
                border-radius:10px; padding:1px 7px; }
   .item.brace:hover, .item.brace.on { background:#e7faf5; border-color:var(--brace); }
+  .item.group:hover, .item.group.on { background:#fbe9fb; border-color:var(--group); }
   main { flex:1; position:relative; overflow:hidden; padding:0;
          background:#f4f4f5; touch-action:none; }
   .stage { position:absolute; top:0; left:0; transform-origin:0 0; cursor:grab;
            box-shadow:0 1px 8px rgba(0,0,0,.12); background:#fff; will-change:transform; }
   .stage.dragging { cursor:grabbing; }
   .stage.animate { transition:transform .35s cubic-bezier(.22,.61,.36,1); }
-  .stage img { display:block; }
+  .stage img { display:block; user-select:none; -webkit-user-drag:none; }
   .tools { position:absolute; right:14px; bottom:14px; display:flex; gap:4px;
            background:#fff; border:1px solid var(--line); border-radius:9px;
            padding:4px; box-shadow:0 1px 8px rgba(0,0,0,.14); user-select:none; }
@@ -65,31 +66,40 @@ _TEMPLATE = """<!doctype html>
   .tools button.fit { width:auto; padding:0 10px; font-size:12px; }
   .box { position:absolute; border:2px solid transparent; border-radius:2px;
          pointer-events:auto; transition:background .08s,border-color .08s; }
-  .box.callout { border-color:transparent; }
+  .box.callout { border-color:transparent; z-index:1; }
   .box.callout.on { border-color:var(--accent); background:rgba(238,34,51,.18); }
   .box.brace.on   { border-color:var(--brace);  background:rgba(0,168,136,.14); }
+  .box.group.on     { border-color:var(--group); background:rgba(221,0,221,.15); }
+  .box.groupbrace   { pointer-events:none; border-style:dashed; z-index:0; }
+  .box.groupbrace.on { border-color:var(--group); background:rgba(221,0,221,.05); }
+  .box.callout.gm   { border-color:var(--group); background:rgba(221,0,221,.18); }
   body.showall .box.callout { border-color:rgba(238,34,51,.35); }
   body.showall .box.brace   { border-color:rgba(0,168,136,.4); }
+  body.showall .box.group { border-color:rgba(221,0,221,.45); }
   .tag { position:absolute; top:-9px; left:-2px; transform:translateY(-100%);
          background:var(--accent); color:#fff; font:600 11px ui-monospace,monospace;
          padding:1px 6px; border-radius:6px; white-space:nowrap; display:none; }
   .box.on .tag { display:block; }
   .box.brace .tag { background:var(--brace); }
+  .box.group .tag { background:var(--group); }
+  .box.gm .tag { display:block; background:var(--group); }
+  .box.groupbrace .tag { display:none; }
   .opt { font-size:12px; color:var(--muted); margin:2px 6px 10px; }
   .opt input { vertical-align:-1px; }
 </style>
 </head>
 <body>
-<header><h1>__TITLE__ <span>· __NDET__ callouts · __NBRACE__ braces</span></h1></header>
+<header><h1>__TITLE__ <span>· __NDET__ callouts · __NBRACE__ braces · __NGROUP__ groups</span></h1></header>
 <div class="wrap">
   <aside>
     <label class="opt"><input type="checkbox" id="showall"> show all boxes</label>
     <h2>Callout numbers</h2>
     <div id="list"></div>
     <div id="bracelist"></div>
+    <div id="grouplist"></div>
   </aside>
   <main id="main">
-    <div class="stage" id="stage"><img src="__IMG__" alt="diagram"></div>
+    <div class="stage" id="stage"><img src="__IMG__" alt="diagram" draggable="false"></div>
     <div class="tools">
       <button id="zout" title="Zoom out">−</button>
       <button id="fit" class="fit" title="Fit to view">Fit</button>
@@ -112,6 +122,11 @@ function hi(ids, on) {
     if (it) it.classList.toggle('on', on);
   }
 }
+const GRP = {};                              // group label box id -> group record
+for (const g of DATA.groups) GRP[g.id] = g;
+function gm(g, on) {                          // members get magenta .gm, not red .on
+  for (const id of g.members) if (boxEl[id]) boxEl[id].classList.toggle('gm', on);
+}
 for (const b of DATA.boxes) {
   const d = document.createElement('div');
   d.className = 'box ' + b.kind;
@@ -123,6 +138,10 @@ for (const b of DATA.boxes) {
   // siblings = every box sharing this number (so both "7"s light together)
   d.addEventListener('mouseenter', () => hi(b.siblings, true));
   d.addEventListener('mouseleave', () => hi(b.siblings, false));
+  if (GRP[b.id]) {
+    d.addEventListener('mouseenter', () => gm(GRP[b.id], true));
+    d.addEventListener('mouseleave', () => gm(GRP[b.id], false));
+  }
 }
 
 // --- pan / zoom: a single transform on #stage (boxes ride along) ---
@@ -180,6 +199,9 @@ stage.addEventListener('pointerup', e => {
   drag = null; stage.classList.remove('dragging');
   try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
 });
+stage.addEventListener('pointercancel', () => {
+  drag = null; stage.classList.remove('dragging');
+});
 
 document.getElementById('zin').addEventListener('click', () => zoomCenter(1.3));
 document.getElementById('zout').addEventListener('click', () => zoomCenter(1 / 1.3));
@@ -189,13 +211,14 @@ main.addEventListener('wheel', () => userZoomed = true, { passive: true });
 stage.addEventListener('pointerdown', () => userZoomed = true);
 addEventListener('resize', () => { if (!userZoomed) fit(); });
 
-function makeItem(key, label, ids, kind) {
+function makeItem(key, label, ids, kind, cnt) {
   const el = document.createElement('div');
   el.className = 'item ' + kind;
   el.dataset.key = key;
   ids.forEach(id => itemOf[id] = key);
+  const n = cnt === undefined ? ids.length : cnt;
   el.innerHTML = '<span class="num">' + label + '</span>' +
-                 (ids.length > 1 ? '<span class="cnt">×' + ids.length + '</span>' : '');
+                 (n > 1 ? '<span class="cnt">×' + n + '</span>' : '');
   el.addEventListener('mouseenter', () => hi(ids, true));
   el.addEventListener('mouseleave', () => hi(ids, false));
   el.addEventListener('click', () => { userZoomed = true; focusBox(ids[0]); });
@@ -207,6 +230,18 @@ const bl = document.getElementById('bracelist');
 if (DATA.braces.length) {
   const h = document.createElement('h2'); h.textContent = 'Braces'; bl.appendChild(h);
   DATA.braces.forEach((id, i) => bl.appendChild(makeItem('br_' + id, 'brace ' + (i + 1), [id], 'brace')));
+}
+const gl = document.getElementById('grouplist');
+if (DATA.groups.length) {
+  const h = document.createElement('h2'); h.textContent = 'Groups'; gl.appendChild(h);
+  for (const g of DATA.groups) {
+    // ids[0] is the focus target: the brace for member groups, the label otherwise
+    const ids = g.brace ? [g.brace, g.id] : [g.id];
+    const el = makeItem('g_' + g.id, 'grp ' + g.label, ids, 'group', g.members.length);
+    el.addEventListener('mouseenter', () => gm(g, true));
+    el.addEventListener('mouseleave', () => gm(g, false));
+    gl.appendChild(el);
+  }
 }
 document.getElementById('showall').addEventListener('change', e =>
   document.body.classList.toggle('showall', e.target.checked));
@@ -230,8 +265,10 @@ def build_html(image_path, result, title=None, img_src=None):
     h, w = bgr.shape[:2]
     dets = result.get("detections", [])
     braces = result.get("open_braces", [])
+    groups = result.get("groups", [])
 
     boxes, by_text, brace_ids = [], defaultdict(list), []
+    det_id_at = {}   # (text, bbox-tuple) -> box id, to resolve group members
     for i, d in enumerate(dets):
         x0, y0, x1, y1 = d["bbox"]
         bid = f"d{i}"
@@ -239,6 +276,7 @@ def build_html(image_path, result, title=None, img_src=None):
                       "x": x0 / w * 100, "y": y0 / h * 100,
                       "w": (x1 - x0) / w * 100, "h": (y1 - y0) / h * 100})
         by_text[d["text"]].append(bid)
+        det_id_at[(d["text"], tuple(d["bbox"]))] = bid
     for i, b in enumerate(braces):
         bx, by, bw, bh = b
         bid = f"b{i}"
@@ -251,12 +289,39 @@ def build_html(image_path, result, title=None, img_src=None):
         if box["kind"] == "callout":
             box["siblings"] = by_text[box["text"]]
 
+    # groups: a magenta label box + (for member groups) a dashed brace box;
+    # members resolve to existing detection boxes by exact (text, bbox) match
+    group_items = []
+    for i, g in enumerate(groups):
+        gid = f"g{i}"
+        gx0, gy0, gx1, gy1 = g["group_bbox"]
+        member_ids = [det_id_at[k] for k in
+                      ((m["text"], tuple(m["bbox"])) for m in g["members"])
+                      if k in det_id_at]
+        gbid = None
+        brace_bbox = g.get("brace_bbox")
+        if g["members"] and brace_bbox:
+            gbid = f"gb{i}"
+            bx0, by0, bx1, by1 = brace_bbox
+            boxes.append({"id": gbid, "kind": "groupbrace", "text": f"grp {g['group']}",
+                          "x": bx0 / w * 100, "y": by0 / h * 100,
+                          "w": (bx1 - bx0) / w * 100, "h": (by1 - by0) / h * 100,
+                          "siblings": []})
+        sibs = [gid, gbid] if gbid else [gid]
+        boxes.append({"id": gid, "kind": "group", "text": f"grp {g['group']}",
+                      "x": gx0 / w * 100, "y": gy0 / h * 100,
+                      "w": (gx1 - gx0) / w * 100, "h": (gy1 - gy0) / h * 100,
+                      "siblings": sibs})
+        group_items.append({"id": gid, "brace": gbid, "label": g["group"],
+                            "members": member_ids})
+
     data = {
         "imgW": w, "imgH": h,
         "boxes": boxes,
         "callouts": [{"text": t, "ids": ids}
                      for t, ids in sorted(by_text.items(), key=lambda kv: _sort_key(kv[0]))],
         "braces": brace_ids,
+        "groups": group_items,
     }
     src = img_src or Path(image_path).name
     title = title or Path(image_path).name
@@ -265,7 +330,8 @@ def build_html(image_path, result, title=None, img_src=None):
             .replace("__IMG__", src)
             .replace("__TITLE__", title)
             .replace("__NDET__", str(len(dets)))
-            .replace("__NBRACE__", str(len(braces))))
+            .replace("__NBRACE__", str(len(braces)))
+            .replace("__NGROUP__", str(len(groups))))
 
 
 def _resolve(arg):

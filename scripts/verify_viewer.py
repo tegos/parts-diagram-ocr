@@ -85,6 +85,20 @@ def verify(html_path, shots_dir):
         s4, tx4, ty4 = _matrix(page)
         check("Fit button reset scale", abs(s4 - s0) < 1e-3)
 
+        # group hover lights members in magenta (.gm) -- only on pages with groups
+        has_groups = page.evaluate("!!document.querySelector('.item.group')")
+        if has_groups:
+            page.evaluate(
+                """() => {
+                    const items = [...document.querySelectorAll('.item.group')];
+                    const it = items.find(i => i.querySelector('.cnt')) || items[0];
+                    it.dispatchEvent(new MouseEvent('mouseenter'));
+                }""")
+            page.wait_for_timeout(50)
+            gm = page.evaluate("document.querySelectorAll('.box.gm').length")
+            page.screenshot(path=str(shots_dir / "5-group.png"))
+            check("group hover lights members (.gm)", gm > 0)
+
         browser.close()
 
     ok = all(c[1] for c in checks)
