@@ -116,12 +116,45 @@ a 0.03×dim member band swallowed the id on large diagrams):
 
 Members may be empty: some braces group parts that carry no callout digits of
 their own (sample grp 5 — washers/nuts identified only by the group id), so an
-id alone binds. Accepted cost, eyeballed across all 100 images: 2 false groups
-(645845000 — a door-glass contour with a stray "6" near a corner; 258133860 —
-a hose-clamp fragment with "2" adjacent), against ~16 true diagonal groups
-bound. sample.png reports all 3 of its groups.
+id alone binds. sample.png reports all 3 of its groups.
+
+The 2 false bindings this initially cost (645845000 — a door-glass contour
+with a stray "6" near a corner; 258133860 — a hose-clamp fragment with "2"
+adjacent) are now gated out by `OPEN_BIND_MIN_SHARP = 5`: a true grouping
+bracket is pronged along its whole spine — every true diagonal brace on the
+20-image GT set shows 6–9 sharp vertices in the central 80 % of the span
+(sample.png: 6/6/10), while both false part-contour bindings showed exactly 3.
+Verified across all 100 images: exactly those 2 groups disappear, no true
+binding lost.
+
+## Update (group ground truth + eval)
+`eval/groundtruth/` now covers 20 images and carries a `groups` key
+(`{"<id>": ["<member>", ...]}` as drawn), scored by `eval/score.py` next to
+the callout metrics. Baseline after the sharp-vertex gate: group id
+precision 83 %, recall 69 %. The eval surfaced defect classes beyond the two
+fixed diagonal false groups, all axis-aligned-path issues:
+
+- **Fragment binds**: a dash-dot leader segment (121105250 → "grp 14"), a pipe
+  curve (702201090 → "grp 1"), even a bolt shaft (194103550 → "grp 10") pass
+  `detect_braces`'s thin-isolated gates and bind nearby labels. A corner gate
+  can't cut them: small true V-braces measure 1 sharp corner, same as the
+  fragments.
+- **Id-side swaps on real braces**: when the id label sits on the member side
+  visually (24{25} read as 25{24,27}; 12{14} as 14{12}; 2{3} as 3{2};
+  6{8}/5{8} as 8{6}/8{5}; 15A{22} as 22{15A}), `associate` picks the wrong
+  side. The brace is right, the id is not.
+- **Missed id-only V-braces**: short brackets grouping unlabeled parts
+  (656311410 has four: 9, 15, 18, 25) fall under `BRACE_MIN_LONG` or read as
+  1-corner strokes.
+- **Missed nested diagonal pairs**: 710407300's 22/23 chained braces bind
+  neither.
+
+These are recall/member-precision costs, documented and measured; fixing the
+id-side rule is the highest-value next step.
 
 ## Known limitations / future work
+- Axis-aligned association: fragment binds, id-side swaps, missed small
+  V-braces (see group-eval update above) — the dominant group-eval cost now.
 - Nested braces double-count: a sub-group's members also appear in the enclosing
   group (194500200: 12A in both grp 6 and grp 21).
 - Interior duplicate misreads (one number read 2-3× from drawing features).
