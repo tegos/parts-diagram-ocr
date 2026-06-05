@@ -56,7 +56,7 @@ _TEMPLATE = """<!doctype html>
            box-shadow:0 1px 8px rgba(0,0,0,.12); background:#fff; will-change:transform; }
   .stage.dragging { cursor:grabbing; }
   .stage.animate { transition:transform .35s cubic-bezier(.22,.61,.36,1); }
-  .stage img { display:block; }
+  .stage img { display:block; user-select:none; }
   .tools { position:absolute; right:14px; bottom:14px; display:flex; gap:4px;
            background:#fff; border:1px solid var(--line); border-radius:9px;
            padding:4px; box-shadow:0 1px 8px rgba(0,0,0,.14); user-select:none; }
@@ -99,7 +99,7 @@ _TEMPLATE = """<!doctype html>
     <div id="grouplist"></div>
   </aside>
   <main id="main">
-    <div class="stage" id="stage"><img src="__IMG__" alt="diagram"></div>
+    <div class="stage" id="stage"><img src="__IMG__" alt="diagram" draggable="false"></div>
     <div class="tools">
       <button id="zout" title="Zoom out">−</button>
       <button id="fit" class="fit" title="Fit to view">Fit</button>
