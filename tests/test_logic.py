@@ -2,7 +2,7 @@
 import numpy as np
 import cv2
 
-from src.braces import associate, associate_open, detect_open_braces
+from src.braces import associate, associate_open, detect_open_braces, _notch_side
 from src.glyphs import glyph_candidates, group_numbers, iou, nms
 from src.pipeline import valid_callout
 
@@ -285,6 +285,46 @@ def test_associate_open_binds_sample_braces():
     assert "5" in by_id    # id-only: bound with no members
 
 
+def _component_box(binv):
+    """bbox (x, y, w, h) of the single foreground component in a test canvas."""
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
+    assert n == 2, f"expected exactly 1 component, got {n - 1}"
+    return labels, tuple(int(v) for v in stats[1][:4])
+
+
+def test_notch_side_v_brace_points_down():
+    # horizontal V-brace, apex pointing DOWN (id below, members above) --
+    # the 627253920 / 194103550 layout
+    binv = np.zeros((200, 400), np.uint8)
+    pts = np.array([[50, 60], [200, 140], [350, 60]], np.int32)
+    cv2.polylines(binv, [pts], False, 255, 3)
+    labels, box = _component_box(binv)
+    side, depth = _notch_side(labels, 1, box, horizontal=True)
+    assert side > 0          # apex below the centroid (y grows down)
+    assert depth > 20
+
+
+def test_notch_side_curly_cusp_left():
+    # vertical '{' opening right: cusp pokes LEFT at mid-height (id left,
+    # members right) -- the 258103600 layout
+    binv = np.zeros((400, 200), np.uint8)
+    pts = np.array([[110, 50], [100, 80], [100, 180], [60, 200],
+                    [100, 220], [100, 320], [110, 350]], np.int32)
+    cv2.polylines(binv, [pts], False, 255, 3)
+    labels, box = _component_box(binv)
+    side, depth = _notch_side(labels, 1, box, horizontal=False)
+    assert side < 0          # cusp left of the centroid
+    assert depth > 20
+
+
+def test_notch_side_straight_line_returns_none():
+    # a plain vertical stroke has no central sharp vertex -> no notch signal
+    binv = np.zeros((400, 200), np.uint8)
+    cv2.line(binv, (100, 50), (100, 350), 255, 3)
+    labels, box = _component_box(binv)
+    assert _notch_side(labels, 1, box, horizontal=False) is None
+
+
 def test_associate_skips_brace_with_no_members():
     braces = [(100, 100, 20, 300)]
     dets = [_det("15", 60, 250)]  # only an outer callout, no inner members
@@ -399,3 +439,43 @@ def test_valid_callout():
     assert not valid_callout("")
     assert not valid_callout("A")     # bare letter
     assert not valid_callout("1C")    # unsupported suffix
+
+
+def _curly_brace_binv():
+    """1000x1000 canvas with one '{' opening right; cusp points LEFT at
+    mid-span (y=250). Returns (binv, brace box exactly matching the
+    component bbox -- associate matches components by exact bbox)."""
+    binv = np.zeros((1000, 1000), np.uint8)
+    pts = np.array([[210, 100], [200, 130], [200, 230], [160, 250],
+                    [200, 270], [200, 370], [210, 400]], np.int32)
+    cv2.polylines(binv, [pts], False, 255, 3)
+    n, _, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
+    assert n == 2
+    return binv, tuple(int(v) for v in stats[1][:4])
+
+
+def test_associate_notch_fixes_id_swap():
+    # the 258103600 pattern: id (24) on the cusp side plus a stray callout
+    # (27) on the same side -- count-vote sees 2 left vs 1 right and makes
+    # the LEFT side the member side, emitting 25{24,27}. The cusp points
+    # left: with binv the id pool is the left side and 24 wins at the tip.
+    binv, box = _curly_brace_binv()
+    dets = [_det("24", 100, 250),    # drawn id, at the cusp
+            _det("27", 100, 390),    # stray same-side callout near span end
+            _det("25", 270, 250)]    # the drawn member (within GROUP_REACH=100
+                                     # of the spine, so the legacy path really
+                                     # does pick it as the id -- see next test)
+    groups = associate([box], dets, image_width=1000, image_height=1000,
+                       binv=binv)
+    assert len(groups) == 1
+    assert groups[0]["group"] == "24"
+    assert [m["text"] for m in groups[0]["members"]] == ["25"]
+
+
+def test_associate_without_binv_keeps_count_vote():
+    # no binv -> no notch signal -> legacy behavior (documents the swap)
+    dets = [_det("24", 100, 250), _det("27", 100, 390), _det("25", 270, 250)]
+    box = _curly_brace_binv()[1]
+    groups = associate([box], dets, image_width=1000, image_height=1000)
+    assert groups[0]["group"] == "25"
+    assert sorted(m["text"] for m in groups[0]["members"]) == ["24", "27"]

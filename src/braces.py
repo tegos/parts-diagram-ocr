@@ -5,8 +5,9 @@ Parts-catalog diagrams group a range of part numbers with a brace, in EITHER ori
 - horizontal '⏝': group-id above/below, members in the adjacent row
 
 Detection finds elongated, thin, whitespace-isolated blobs. Association is
-axis-agnostic: the side of the brace holding the most aligned callouts is the
-member side; the lone callout near the brace tip on the opposite side is the id.
+axis-agnostic: the brace's notch (cusp of '{', apex of V) points at the group
+id; with no measurable notch, the side holding the most aligned callouts is
+the member side and the id is the lone callout near the tip opposite.
 """
 import cv2
 import numpy as np
@@ -46,6 +47,13 @@ OPEN_MUTUAL_IOU = 0.35     # candidates whose bboxes overlap this much are
 GROUP_MIDBAND = 0.30       # group-id near brace tip (fraction of span length)
 MEMBER_REACH = 0.13        # member row/column distance (fraction of perp image dim)
 GROUP_REACH = 0.10         # group-id distance from spine (fraction of perp image dim)
+NOTCH_MIN_DEPTH = 0.5      # min notch depth / median digit height to trust
+                           # the notch side over the count-vote. Measured on
+                           # the 20-image GT set (ADR 0002 id-swap update):
+                           # true cusps/apexes 0.57-0.97 dh (swapped-id braces
+                           # 0.75-0.97); nothing measurable below 0.57. The
+                           # high floor is the safe direction -- dropping a
+                           # true notch only reverts to the count-vote.
 # diagonal-brace association tolerances, in units of DIGIT HEIGHT -- the only
 # scale that holds across catalogs (image-dim fractions break: a 0.03*2300px
 # member band swallows the id on large diagrams). Measured on every true brace
@@ -183,6 +191,34 @@ def _sharp_vertices(mask):
     return out
 
 
+def _notch_side(labels, idx, box, horizontal):
+    """Which perpendicular side the brace's notch points to, or None.
+
+    Catalogs draw the group id on the NOTCH side -- the mid-span cusp of a
+    '{' and the apex of a V both point at the id; members align with the
+    legs/span on the opposite side (ADR 0002, id-swap update). The notch is
+    the deepest sharp vertex perpendicular from the pixel centroid, taken
+    from the central 80% of the span only -- stroke end-hooks curl toward
+    the member side and end-caps read as sharp vertices (the same trap the
+    diagonal path documents). Returns (side_sign, depth_px) or None when no
+    central sharp vertex exists (straight strokes, small 1-corner braces).
+    """
+    x, y, w, h = box
+    mask = (labels[y:y + h, x:x + w] == idx).astype("uint8")
+    span = w if horizontal else h
+    a = 0 if horizontal else 1            # along-axis index in (x, y) verts
+    p = 1 - a                             # perpendicular-axis index
+    lo, hi = 0.1 * span, 0.9 * span
+    central = [v for v in _sharp_vertices(mask) if lo <= v[a] <= hi]
+    if not central:
+        return None
+    ys, xs = np.nonzero(mask)
+    c = (xs.mean(), ys.mean())
+    deep = max(central, key=lambda v: abs(v[p] - c[p]))
+    off = deep[p] - c[p]
+    return (1.0 if off > 0 else -1.0), abs(off)
+
+
 def associate_open(open_braces, dets, binv, image_width, image_height):
     """Bind diagonal open-line braces to a group id + members.
 
@@ -279,8 +315,24 @@ def _cy(b):
     return (b["bbox"][1] + b["bbox"][3]) / 2.0
 
 
-def associate(braces, dets, image_width, image_height):
-    """Return groups: {group, group_bbox, brace_bbox, members:[...]}."""
+def associate(braces, dets, image_width, image_height, binv=None):
+    """Return groups: {group, group_bbox, brace_bbox, members:[...]}.
+
+    Side selection: the brace's notch (cusp of '{', apex of V) points at the
+    group id (ADR 0002 id-swap update) -- when `binv` is given and the brace
+    component shows a notch deeper than NOTCH_MIN_DEPTH digit heights, the id
+    pool is the notch side and members are the opposite side. Otherwise falls
+    back to the count-vote (side with more aligned callouts = members), which
+    is all there is for small 1-corner V-braces and when binv is unavailable.
+    """
+    labels = by_bbox = None
+    if binv is not None:
+        n, labels, stats, _ = cv2.connectedComponentsWithStats(
+            binv, connectivity=8)
+        by_bbox = {tuple(int(v) for v in stats[i][:4]): i for i in range(1, n)}
+    heights = sorted(d["bbox"][3] - d["bbox"][1] for d in dets)
+    med_h = heights[len(heights) // 2] if heights else 0
+
     groups = []
     for (bx, by, bw, bh) in braces:
         horizontal = bw >= bh
@@ -302,9 +354,23 @@ def associate(braces, dets, image_width, image_height):
             off = perp(d) - perp_c
             (pos if off > 0 else neg).append((abs(off), d))
 
+        notch = None
+        if labels is not None and med_h:
+            idx = by_bbox.get((bx, by, bw, bh))
+            if idx is not None:
+                notch = _notch_side(labels, idx, (bx, by, bw, bh), horizontal)
+                if notch and notch[1] < NOTCH_MIN_DEPTH * med_h:
+                    notch = None
+
         pos_m = [d for o, d in pos if o <= member_reach]
         neg_m = [d for o, d in neg if o <= member_reach]
-        if len(pos_m) >= len(neg_m):
+        if notch is not None:
+            # id sits on the notch side; members on the other
+            if notch[0] > 0:
+                members, group_pool = neg_m, pos
+            else:
+                members, group_pool = pos_m, neg
+        elif len(pos_m) >= len(neg_m):
             members, group_pool = pos_m, neg
         else:
             members, group_pool = neg_m, pos
