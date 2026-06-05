@@ -80,7 +80,7 @@ _TEMPLATE = """<!doctype html>
 </style>
 </head>
 <body>
-<header><h1>__TITLE__ <span>· __NDET__ callouts · __NBRACE__ braces</span></h1></header>
+<header><h1>__TITLE__ <span>· __NDET__ callouts · __NBRACE__ braces · __NGROUP__ groups</span></h1></header>
 <div class="wrap">
   <aside>
     <label class="opt"><input type="checkbox" id="showall"> show all boxes</label>
@@ -230,8 +230,10 @@ def build_html(image_path, result, title=None, img_src=None):
     h, w = bgr.shape[:2]
     dets = result.get("detections", [])
     braces = result.get("open_braces", [])
+    groups = result.get("groups", [])
 
     boxes, by_text, brace_ids = [], defaultdict(list), []
+    det_id_at = {}   # (text, bbox-tuple) -> box id, to resolve group members
     for i, d in enumerate(dets):
         x0, y0, x1, y1 = d["bbox"]
         bid = f"d{i}"
@@ -239,6 +241,7 @@ def build_html(image_path, result, title=None, img_src=None):
                       "x": x0 / w * 100, "y": y0 / h * 100,
                       "w": (x1 - x0) / w * 100, "h": (y1 - y0) / h * 100})
         by_text[d["text"]].append(bid)
+        det_id_at[(d["text"], tuple(d["bbox"]))] = bid
     for i, b in enumerate(braces):
         bx, by, bw, bh = b
         bid = f"b{i}"
@@ -251,12 +254,38 @@ def build_html(image_path, result, title=None, img_src=None):
         if box["kind"] == "callout":
             box["siblings"] = by_text[box["text"]]
 
+    # groups: a magenta label box + (for member groups) a dashed brace box;
+    # members resolve to existing detection boxes by exact (text, bbox) match
+    group_items = []
+    for i, g in enumerate(groups):
+        gid = f"g{i}"
+        gx0, gy0, gx1, gy1 = g["group_bbox"]
+        member_ids = [det_id_at[k] for k in
+                      ((m["text"], tuple(m["bbox"])) for m in g["members"])
+                      if k in det_id_at]
+        gbid = None
+        if g["members"]:
+            gbid = f"gb{i}"
+            bx0, by0, bx1, by1 = g["brace_bbox"]
+            boxes.append({"id": gbid, "kind": "groupbrace", "text": f"grp {g['group']}",
+                          "x": bx0 / w * 100, "y": by0 / h * 100,
+                          "w": (bx1 - bx0) / w * 100, "h": (by1 - by0) / h * 100,
+                          "siblings": []})
+        sibs = [gid, gbid] if gbid else [gid]
+        boxes.append({"id": gid, "kind": "group", "text": f"grp {g['group']}",
+                      "x": gx0 / w * 100, "y": gy0 / h * 100,
+                      "w": (gx1 - gx0) / w * 100, "h": (gy1 - gy0) / h * 100,
+                      "siblings": sibs})
+        group_items.append({"id": gid, "brace": gbid, "label": g["group"],
+                            "members": member_ids})
+
     data = {
         "imgW": w, "imgH": h,
         "boxes": boxes,
         "callouts": [{"text": t, "ids": ids}
                      for t, ids in sorted(by_text.items(), key=lambda kv: _sort_key(kv[0]))],
         "braces": brace_ids,
+        "groups": group_items,
     }
     src = img_src or Path(image_path).name
     title = title or Path(image_path).name
@@ -265,7 +294,8 @@ def build_html(image_path, result, title=None, img_src=None):
             .replace("__IMG__", src)
             .replace("__TITLE__", title)
             .replace("__NDET__", str(len(dets)))
-            .replace("__NBRACE__", str(len(braces))))
+            .replace("__NBRACE__", str(len(braces)))
+            .replace("__NGROUP__", str(len(groups))))
 
 
 def _resolve(arg):

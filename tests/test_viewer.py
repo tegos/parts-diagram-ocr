@@ -101,3 +101,60 @@ def test_missing_open_braces_key_is_ok(tiny_png):
     data = _data(build_html(tiny_png, {"detections": [_det("5", 0, 0, 5, 5)]}))
     assert len(data["boxes"]) == 1
     assert data["braces"] == []
+
+
+def _grp(label, group_bbox, brace_bbox, members):
+    return {"group": label, "group_bbox": group_bbox,
+            "brace_bbox": brace_bbox, "members": members}
+
+
+def test_group_emits_label_and_brace_boxes(tiny_png):
+    result = {"detections": [_det("7", 0, 0, 10, 10), _det("8", 20, 0, 30, 10)],
+              "open_braces": [],
+              "groups": [_grp("2", [50, 0, 60, 10], [0, 0, 100, 50],
+                              [{"text": "7", "bbox": [0, 0, 10, 10]},
+                               {"text": "8", "bbox": [20, 0, 30, 10]}])]}
+    data = _data(build_html(tiny_png, result))
+    kinds = [b["kind"] for b in data["boxes"]]
+    assert kinds.count("group") == 1
+    assert kinds.count("groupbrace") == 1
+    g = data["groups"][0]
+    det_ids = {b["id"] for b in data["boxes"] if b["kind"] == "callout"}
+    assert set(g["members"]) == det_ids          # members resolved to detection ids
+    assert g["label"] == "2"
+    assert g["brace"] is not None
+    label_box = next(b for b in data["boxes"] if b["kind"] == "group")
+    assert label_box["id"] == g["id"]
+    assert label_box["text"] == "grp 2"
+    # label box siblings light label + brace together
+    assert set(label_box["siblings"]) == {g["id"], g["brace"]}
+
+
+def test_id_only_group_has_no_brace_box(tiny_png):
+    result = {"detections": [_det("5", 0, 0, 10, 10)], "open_braces": [],
+              "groups": [_grp("5", [0, 0, 10, 10], [0, 0, 50, 30], [])]}
+    data = _data(build_html(tiny_png, result))
+    g = data["groups"][0]
+    assert g["brace"] is None
+    assert g["members"] == []
+    assert sum(b["kind"] == "groupbrace" for b in data["boxes"]) == 0
+
+
+def test_unmatched_member_is_skipped(tiny_png):
+    result = {"detections": [_det("7", 0, 0, 10, 10)], "open_braces": [],
+              "groups": [_grp("3", [50, 0, 60, 10], [0, 0, 100, 50],
+                              [{"text": "7", "bbox": [0, 0, 10, 10]},
+                               {"text": "9", "bbox": [70, 0, 80, 10]}])]}
+    g = _data(build_html(tiny_png, result))["groups"][0]
+    assert len(g["members"]) == 1               # the "9" has no detection; skipped
+
+
+def test_header_reports_group_count(tiny_png):
+    result = {"detections": [], "open_braces": [],
+              "groups": [_grp("1", [0, 0, 5, 5], [0, 0, 50, 50], [])]}
+    assert "1 groups" in build_html(tiny_png, result)
+
+
+def test_missing_groups_key_is_ok(tiny_png):
+    data = _data(build_html(tiny_png, {"detections": [_det("5", 0, 0, 5, 5)]}))
+    assert data["groups"] == []
