@@ -15,3 +15,7 @@ scripts/make_hero.py
 # IDE / OS
 .idea/
 .DS_Store
+
+# Local-only working docs (specs drafts, implementation plans)
+docs/superpowers/plans/
+docs/superpowers/specs/local/
