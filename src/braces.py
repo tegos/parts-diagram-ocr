@@ -183,6 +183,34 @@ def _sharp_vertices(mask):
     return out
 
 
+def _notch_side(labels, idx, box, horizontal):
+    """Which perpendicular side the brace's notch points to, or None.
+
+    Catalogs draw the group id on the NOTCH side -- the mid-span cusp of a
+    '{' and the apex of a V both point at the id; members align with the
+    legs/span on the opposite side (ADR 0002, id-swap update). The notch is
+    the deepest sharp vertex perpendicular from the pixel centroid, taken
+    from the central 80% of the span only -- stroke end-hooks curl toward
+    the member side and end-caps read as sharp vertices (the same trap the
+    diagonal path documents). Returns (side_sign, depth_px) or None when no
+    central sharp vertex exists (straight strokes, small 1-corner braces).
+    """
+    x, y, w, h = box
+    mask = (labels[y:y + h, x:x + w] == idx).astype("uint8")
+    span = w if horizontal else h
+    a = 0 if horizontal else 1            # along-axis index in (x, y) verts
+    p = 1 - a                             # perpendicular-axis index
+    lo, hi = 0.1 * span, 0.9 * span
+    central = [v for v in _sharp_vertices(mask) if lo <= v[a] <= hi]
+    if not central:
+        return None
+    ys, xs = np.nonzero(mask)
+    c = (xs.mean(), ys.mean())
+    deep = max(central, key=lambda v: abs(v[p] - c[p]))
+    off = deep[p] - c[p]
+    return (1.0 if off > 0 else -1.0), abs(off)
+
+
 def associate_open(open_braces, dets, binv, image_width, image_height):
     """Bind diagonal open-line braces to a group id + members.
 
