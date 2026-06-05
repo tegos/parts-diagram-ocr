@@ -34,7 +34,11 @@ ISO_MAX_INK = 0.10     # max black-pixel ratio in the ring. Real digits measured
 # --- recognition ---
 RECOG_PAD = 6          # px padding around crop before recognition
 RECOG_UPSCALE = 4.0    # upscale crop for the recognizer
-MIN_CONFIDENCE = 0.55  # drop low-confidence reads
+MIN_CONFIDENCE = 0.50  # drop low-confidence reads. Was 0.55, but two legit
+                       # two-digit callouts (12, 22) read at 0.52-0.53 with clean
+                       # whitespace rings; 0.50 recovers them. Eval held precision
+                       # at 100% (recall 97% -> 99%); junk reads sit far lower or
+                       # are caught by the ring gate / valid_callout.
 DIGIT_RANGE = (1, 199)  # numeric part of a callout; some catalogs exceed 100
 ALLOWLIST = "0123456789AB"  # callouts can carry an A/B suffix (1A, 4A, 16A, 1B)
 SUFFIXES = "AB"        # accepted trailing letters
