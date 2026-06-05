@@ -44,7 +44,7 @@ def process(path, write_overlay=True):
          "open_braces": [list(b) for b in open_braces]}, indent=2))
     if write_overlay:
         cv2.imwrite(str(OUT_DIR / f"{path.stem}_overlay.png"),
-                    draw_overlay(bgr, dets, groups, open_braces))
+                    draw_overlay(bgr, dets, groups))
     return dets, groups
 
 

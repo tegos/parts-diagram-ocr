@@ -63,15 +63,16 @@ def _callout(layer, anchor, text, color, scale=0.6, thick=2, dx=16, dy=-18):
                 thick, cv2.LINE_AA)
 
 
-def draw_overlay(bgr, dets, groups=None, open_braces=None, alpha=OVERLAY_ALPHA):
+def draw_overlay(bgr, dets, groups=None, alpha=OVERLAY_ALPHA):
     """Annotations are drawn on a layer and alpha-blended, so each mark is
     semi-transparent while untouched pixels keep the original drawing intact.
-    Detected numbers are pulled out as small leader-linked callouts."""
+    Detected numbers are pulled out as small leader-linked callouts.
+
+    Diagonal open-line braces are NOT drawn: even after tightening, ~2/3 of
+    them are part-contour fragments (ADR 0002), so the static overlay skips
+    them. They stay in the JSON (`open_braces`) and the interactive viewer
+    surfaces them on demand (hover/showall)."""
     layer = bgr.copy()
-    # diagonal open-line braces: drawn (cyan) but not numbered -- see ADR 0002
-    for (bx, by, bw, bh) in open_braces or []:
-        cv2.rectangle(layer, (bx, by), (bx + bw, by + bh), (255, 200, 0), 2)
-        _callout(layer, (bx, by), "brace", (255, 200, 0))
     for d in dets:
         x0, y0, x1, y1 = d["bbox"]
         cv2.rectangle(layer, (x0, y0), (x1, y1), (0, 0, 255), 1)

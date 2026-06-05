@@ -121,6 +121,37 @@ def test_glyph_accepts_narrow_one():
     assert w == 5 and h == 17
 
 
+def test_glyph_rejects_tilted_bar():
+    # a TILTED part-edge segment (h ~2x the digit size, w inflated by the tilt
+    # so the aspect cap misses it) reads as "1" at conf 1.0 — must die at the
+    # candidate stage. A bare bar fits a straight line near-perfectly
+    # (resid/len < 0.03); a real "1" has a serif/flag (0.07+).
+    g = np.full((80, 30), 255, np.uint8)
+    cv2.line(g, (8, 5), (20, 65), 0, 2)
+    from src.glyphs import binarize_inv
+    assert glyph_candidates(binarize_inv(g)) == []
+
+
+def test_glyph_rejects_tilted_bars_on_194103800():
+    # regression guard: three valve-cover edge segments at (506,2136),
+    # (940,1887), (852,1935) sat in whitespace pockets and read as "1"
+    # conf 0.97-1.0. All real digits on that diagram are h 29-32; the bars
+    # are h 56-62 bare lines.
+    from src.config import IMAGES_DIR
+    p = IMAGES_DIR / "194103800.png"
+    if not p.exists():
+        import pytest
+        pytest.skip("194103800.png not present")
+    from src.glyphs import binarize_inv
+    g = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
+    cands = glyph_candidates(binarize_inv(g))
+    for (bx, by) in [(506, 2136), (940, 1887), (852, 1935)]:
+        assert not any(abs(x - bx) < 4 and abs(y - by) < 4 for (x, y, w, h) in cands), \
+            f"bare bar at ({bx},{by}) still a candidate"
+    # the real "1" at (705,365) must survive (serif/flag -> not a bare line)
+    assert any(abs(x - 705) < 4 and abs(y - 365) < 4 for (x, y, w, h) in cands)
+
+
 def test_glyph_rejects_tall_thin_bar():
     # a leader-line fragment (w4, h36, aspect 9) reads as "1" to OCR but must be
     # rejected at the candidate stage by the aspect cap.

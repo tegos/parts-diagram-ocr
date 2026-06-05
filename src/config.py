@@ -18,6 +18,12 @@ GLYPH_MIN_AREA = 30          # was 50; a small "1" is only ~38px, so 50 dropped 
 GLYPH_MAX_ASPECT = 7         # h/w cap. A printed "1" sits at ~3-4 at every scale
                              # (serifs scale with height); leader-line fragments that
                              # read as "1" are bare bars at aspect 10+ -> rejected.
+GLYPH_MAX_LINEARITY = 0.05   # max line-fit residual / long side for tall-thin
+                             # candidates (aspect >= 3). A TILTED part-edge bar
+                             # evades the aspect cap (tilt inflates w) yet fits a
+                             # straight line near-perfectly; a real "1" has a
+                             # serif/flag. Measured: bars 0.023-0.028, real "1"s
+                             # 0.070-0.171 (incl. the w4-5 narrow ones).
 
 # --- number grouping ---
 GROUP_GAP = 0.8        # max horizontal gap between glyphs, in units of glyph height
