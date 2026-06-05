@@ -128,6 +128,10 @@ def test_group_emits_label_and_brace_boxes(tiny_png):
     assert label_box["text"] == "grp 2"
     # label box siblings light label + brace together
     assert set(label_box["siblings"]) == {g["id"], g["brace"]}
+    assert label_box["x"] == pytest.approx(25.0)   # 50/200
+    assert label_box["y"] == pytest.approx(0.0)
+    assert label_box["w"] == pytest.approx(5.0)    # 10/200
+    assert label_box["h"] == pytest.approx(10.0)   # 10/100
 
 
 def test_id_only_group_has_no_brace_box(tiny_png):
@@ -145,8 +149,10 @@ def test_unmatched_member_is_skipped(tiny_png):
               "groups": [_grp("3", [50, 0, 60, 10], [0, 0, 100, 50],
                               [{"text": "7", "bbox": [0, 0, 10, 10]},
                                {"text": "9", "bbox": [70, 0, 80, 10]}])]}
-    g = _data(build_html(tiny_png, result))["groups"][0]
+    data = _data(build_html(tiny_png, result))
+    g = data["groups"][0]
     assert len(g["members"]) == 1               # the "9" has no detection; skipped
+    assert sum(b["kind"] == "groupbrace" for b in data["boxes"]) == 1
 
 
 def test_header_reports_group_count(tiny_png):

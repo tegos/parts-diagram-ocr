@@ -264,9 +264,10 @@ def build_html(image_path, result, title=None, img_src=None):
                       ((m["text"], tuple(m["bbox"])) for m in g["members"])
                       if k in det_id_at]
         gbid = None
-        if g["members"]:
+        brace_bbox = g.get("brace_bbox")
+        if g["members"] and brace_bbox:
             gbid = f"gb{i}"
-            bx0, by0, bx1, by1 = g["brace_bbox"]
+            bx0, by0, bx1, by1 = brace_bbox
             boxes.append({"id": gbid, "kind": "groupbrace", "text": f"grp {g['group']}",
                           "x": bx0 / w * 100, "y": by0 / h * 100,
                           "w": (bx1 - bx0) / w * 100, "h": (by1 - by0) / h * 100,
