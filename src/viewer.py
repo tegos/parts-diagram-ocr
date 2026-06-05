@@ -66,11 +66,11 @@ _TEMPLATE = """<!doctype html>
   .tools button.fit { width:auto; padding:0 10px; font-size:12px; }
   .box { position:absolute; border:2px solid transparent; border-radius:2px;
          pointer-events:auto; transition:background .08s,border-color .08s; }
-  .box.callout { border-color:transparent; }
+  .box.callout { border-color:transparent; z-index:1; }
   .box.callout.on { border-color:var(--accent); background:rgba(238,34,51,.18); }
   .box.brace.on   { border-color:var(--brace);  background:rgba(0,168,136,.14); }
   .box.group.on     { border-color:var(--group); background:rgba(221,0,221,.15); }
-  .box.groupbrace   { pointer-events:none; border-style:dashed; }
+  .box.groupbrace   { pointer-events:none; border-style:dashed; z-index:0; }
   .box.groupbrace.on { border-color:var(--group); background:rgba(221,0,221,.05); }
   .box.callout.gm   { border-color:var(--group); background:rgba(221,0,221,.18); }
   body.showall .box.callout { border-color:rgba(238,34,51,.35); }
@@ -82,8 +82,8 @@ _TEMPLATE = """<!doctype html>
   .box.on .tag { display:block; }
   .box.brace .tag { background:var(--brace); }
   .box.group .tag { background:var(--group); }
-  .box.groupbrace .tag { display:none; }
   .box.gm .tag { display:block; background:var(--group); }
+  .box.groupbrace .tag { display:none; }
   .opt { font-size:12px; color:var(--muted); margin:2px 6px 10px; }
   .opt input { vertical-align:-1px; }
 </style>
