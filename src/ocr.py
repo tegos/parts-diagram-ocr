@@ -7,7 +7,14 @@ _reader = None
 def reader():
     global _reader
     if _reader is None:
+        import os
+
         import easyocr
+        import torch
+
+        # torch defaults to 2 intraop threads here; use every core. CPU
+        # inference is the whole pipeline cost (97% of batch wall time).
+        torch.set_num_threads(os.cpu_count() or 2)
         _reader = easyocr.Reader(["en"], gpu=False)
     return _reader
 
@@ -80,8 +87,9 @@ def recognize(gray, box):
         return None, 0.0
     crop = cv2.resize(crop, None, fx=RECOG_UPSCALE, fy=RECOG_UPSCALE,
                       interpolation=cv2.INTER_CUBIC)
-    out = reader().readtext(crop, allowlist=ALLOWLIST, detail=1,
-                            text_threshold=0.4, low_text=0.3, mag_ratio=1.5)
+    ch, cw = crop.shape[:2]
+    out = reader().recognize(crop, [[0, cw, 0, ch]], [],
+                             allowlist=ALLOWLIST, detail=1)
     if not out:
         return None, 0.0
     _, text, conf = max(out, key=lambda r: r[2])
