@@ -439,3 +439,43 @@ def test_valid_callout():
     assert not valid_callout("")
     assert not valid_callout("A")     # bare letter
     assert not valid_callout("1C")    # unsupported suffix
+
+
+def _curly_brace_binv():
+    """1000x1000 canvas with one '{' opening right; cusp points LEFT at
+    mid-span (y=250). Returns (binv, brace box exactly matching the
+    component bbox -- associate matches components by exact bbox)."""
+    binv = np.zeros((1000, 1000), np.uint8)
+    pts = np.array([[210, 100], [200, 130], [200, 230], [160, 250],
+                    [200, 270], [200, 370], [210, 400]], np.int32)
+    cv2.polylines(binv, [pts], False, 255, 3)
+    n, _, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
+    assert n == 2
+    return binv, tuple(int(v) for v in stats[1][:4])
+
+
+def test_associate_notch_fixes_id_swap():
+    # the 258103600 pattern: id (24) on the cusp side plus a stray callout
+    # (27) on the same side -- count-vote sees 2 left vs 1 right and makes
+    # the LEFT side the member side, emitting 25{24,27}. The cusp points
+    # left: with binv the id pool is the left side and 24 wins at the tip.
+    binv, box = _curly_brace_binv()
+    dets = [_det("24", 100, 250),    # drawn id, at the cusp
+            _det("27", 100, 390),    # stray same-side callout near span end
+            _det("25", 270, 250)]    # the drawn member (within GROUP_REACH=100
+                                     # of the spine, so the legacy path really
+                                     # does pick it as the id -- see next test)
+    groups = associate([box], dets, image_width=1000, image_height=1000,
+                       binv=binv)
+    assert len(groups) == 1
+    assert groups[0]["group"] == "24"
+    assert [m["text"] for m in groups[0]["members"]] == ["25"]
+
+
+def test_associate_without_binv_keeps_count_vote():
+    # no binv -> no notch signal -> legacy behavior (documents the swap)
+    dets = [_det("24", 100, 250), _det("27", 100, 390), _det("25", 270, 250)]
+    box = _curly_brace_binv()[1]
+    groups = associate([box], dets, image_width=1000, image_height=1000)
+    assert groups[0]["group"] == "25"
+    assert sorted(m["text"] for m in groups[0]["members"]) == ["24", "27"]
