@@ -46,13 +46,46 @@ def _canvas():
     return np.full((220, 220), 255, np.uint8)
 
 
-def test_open_brace_detects_diagonal_line():
-    # a thin diagonal line: near-square bbox, so the aspect filter misses it,
-    # but it is thin + isolated + open -> detect_open_braces catches it.
+def test_open_brace_detects_pronged_polyline():
+    # a grouping brace drawn as a diagonal polyline WITH prongs (direction
+    # changes) -- the prongs are what make it a brace and not a leader line.
     g = _canvas()
-    cv2.line(g, (30, 30), (170, 150), 0, 2)
+    pts = np.array([[20, 60], [50, 40], [90, 70], [120, 50], [160, 80],
+                    [170, 120], [140, 150], [150, 190]], np.int32)
+    cv2.polylines(g, [pts], False, 0, 2)
     braces = detect_open_braces(g)
     assert len(braces) == 1
+
+
+def test_open_brace_rejects_straight_line():
+    # a plain straight diagonal line is a LEADER line (number -> part), not a
+    # brace: no prongs means no grouping semantics. Used to be accepted.
+    g = _canvas()
+    cv2.line(g, (30, 30), (170, 150), 0, 2)
+    assert detect_open_braces(g) == []
+
+
+def test_open_brace_rejects_concentric_fragments():
+    # two broken arcs of the same circle (a part contour, e.g. a flywheel rim
+    # interrupted by teeth) overlap each other's bboxes -> both dropped.
+    g = np.full((400, 400), 255, np.uint8)
+    for r, gap in ((150, 30), (120, 60)):
+        for a0 in range(0, 360, 90):
+            cv2.ellipse(g, (200, 200), (r, r), 0, a0 + gap / 4, a0 + 90 - gap / 4, 0, 2)
+    # make each arc prong-y enough to pass the corner gate on its own
+    assert detect_open_braces(g) == []
+
+
+def test_open_brace_excludes_axis_brace_duplicates():
+    # a candidate overlapping an already-detected axis-aligned brace box is the
+    # SAME brace caught twice -> the open detector must not re-report it.
+    g = _canvas()
+    pts = np.array([[20, 60], [50, 40], [90, 70], [120, 50], [160, 80],
+                    [170, 120], [140, 150], [150, 190]], np.int32)
+    cv2.polylines(g, [pts], False, 0, 2)
+    found = detect_open_braces(g)
+    assert len(found) == 1
+    assert detect_open_braces(g, exclude=found) == []
 
 
 def test_open_brace_rejects_closed_loop():

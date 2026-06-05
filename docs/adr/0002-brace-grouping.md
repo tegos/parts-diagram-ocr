@@ -69,6 +69,28 @@ labeled-bracket groups needs a genuine prong/leader discriminator (or targeted
 recognition at the prong tip to recover the id, including the thin "1"), left as
 future work.
 
+## Update (open-line filter tightened — prongs required)
+The flood noted above was real: across the 100-image set the open-line filter
+reported 402 boxes on 83 images, and on 121105250 all 10 were wrong (5 plain
+leader lines, 3 concentric flywheel-rim arc fragments, 2 duplicates of braces
+the axis-aligned detector had already bound to groups). Three additions, each
+threshold measured on real true/false candidates:
+
+- **Sharp corners ≥ 5** (`approxPolyDP`, edges ≥ 8px, angle < 140°): a bracket
+  has prongs — that's its grouping semantics; a straight leader line doesn't.
+  Measured: real braces 7–76 corners, leader lines 1–3. (This redefines the
+  contract: a plain diagonal stroke is now correctly *rejected*.)
+- **Mutual bbox-overlap suppression (IoU ≥ 0.35)**: candidates overlapping each
+  other are fragments of one drawing entity (flywheel arcs measured pairwise
+  0.37–0.7; distinct real braces with nested bboxes measured 0.015).
+- **`exclude=` dedup**: candidates overlapping a `detect_braces` box are the
+  same brace caught twice and were double-drawn (cyan over magenta).
+
+Result: 402 → 50 boxes (34 images); sample keeps its 3, 121105250 drops to 0.
+Residual: ~2/3 of the surviving 50 are still part-contour fragments (gaskets,
+glass panels, wheel arches read as pronged polylines) — acceptable for an
+overlay-only hint; real progress now needs brace ground truth, not heuristics.
+
 ## Known limitations / future work
 - Nested braces double-count: a sub-group's members also appear in the enclosing
   group (194500200: 12A in both grp 6 and grp 21).

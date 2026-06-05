@@ -36,7 +36,7 @@ def process(path, write_overlay=True):
     dets = detect(gray)
     braces = detect_braces(gray, binv)
     groups = associate(braces, dets, gray.shape[1], gray.shape[0])
-    open_braces = detect_open_braces(gray, binv)
+    open_braces = detect_open_braces(gray, binv, exclude=braces)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / f"{path.stem}.json").write_text(json.dumps(

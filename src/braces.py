@@ -9,8 +9,9 @@ axis-agnostic: the side of the brace holding the most aligned callouts is the
 member side; the lone callout near the brace tip on the opposite side is the id.
 """
 import cv2
+import numpy as np
 
-from src.glyphs import binarize_inv, ink_ratio_ring
+from src.glyphs import binarize_inv, ink_ratio_ring, iou
 
 # brace shape filter (elongated thin curve)
 BRACE_MIN_LONG = 60        # length along the spine
@@ -31,6 +32,15 @@ OPEN_MAX_FILL = 0.06       # area/bbox: a thin line nearly vanishes in its bbox
 OPEN_MIN_LONG = 80         # bbox long side: span at least a couple of rows
 OPEN_ISO_MAX_INK = 0.06    # whitespace gate, tighter than solid braces
 OPEN_MAX_HOLES = 0         # open polyline encloses nothing; part outlines do
+OPEN_MIN_CORNERS = 5       # sharp direction changes (prongs). A brace is a
+                           # bracket -- prongs are its grouping semantics; a
+                           # plain straight stroke is a leader line. Measured:
+                           # real braces 7-76 corners, leader lines 1-3.
+OPEN_MUTUAL_IOU = 0.35     # candidates whose bboxes overlap this much are
+                           # fragments of one drawing entity (e.g. concentric
+                           # flywheel arcs broken by teeth) -- a real brace
+                           # stands alone. Measured: arc pairs 0.37-0.7+,
+                           # nested-but-distinct real braces 0.015.
 
 # association tolerances
 GROUP_MIDBAND = 0.30       # group-id near brace tip (fraction of span length)
@@ -68,18 +78,51 @@ def _hole_count(label_crop, idx):
     return sum(1 for c in hier[0] if c[3] != -1)   # contour with a parent = hole
 
 
-def detect_open_braces(gray, binv=None):
+def _sharp_corners(labels, idx, box):
+    """Sharp direction changes along component `idx`'s outline.
+
+    Prongs of a bracket produce corners well under 140 deg; a straight leader
+    line has none and a smooth arc only shallow ones. Short polygon edges
+    (under 8 px) are stroke-width noise and don't vote.
+    """
+    x, y, w, h = box
+    mask = (labels[y:y + h, x:x + w] == idx).astype("uint8")
+    cnts, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    pts = cv2.approxPolyDP(max(cnts, key=cv2.contourArea), 4, False)[:, 0, :]
+    pts = pts.astype(np.float64)
+    sharp = 0
+    for i in range(1, len(pts) - 1):
+        v1, v2 = pts[i - 1] - pts[i], pts[i + 1] - pts[i]
+        n1, n2 = np.linalg.norm(v1), np.linalg.norm(v2)
+        if n1 < 8 or n2 < 8:
+            continue
+        ang = np.degrees(np.arccos(np.clip(v1 @ v2 / (n1 * n2), -1, 1)))
+        if ang < 140:
+            sharp += 1
+    return sharp
+
+
+def _xyxy(b):
+    x, y, w, h = b
+    return (x, y, x + w, y + h)
+
+
+def detect_open_braces(gray, binv=None, exclude=()):
     """Diagonal thin OPEN-polyline braces -> boxes (x, y, w, h).
 
     Complements detect_braces, which only catches axis-aligned (tall/wide)
     braces. Diagonal braces have a near-square bbox, so they need a different
-    signature: thin (low fill), whitespace-isolated, and topologically open
-    (no enclosed holes -- the discriminator against closed part contours).
+    signature: thin (low fill), whitespace-isolated, topologically open
+    (no enclosed holes), and PRONGED -- sharp corners are what distinguish a
+    grouping bracket from a straight leader line. Candidates whose bboxes
+    mutually overlap are fragments of one part contour (concentric broken
+    arcs) and are all dropped; ones overlapping an `exclude` box (braces the
+    axis-aligned detector already found) are duplicates and skipped.
     """
     if binv is None:
         binv = binarize_inv(gray)
     n, labels, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
-    out = []
+    cand = []
     for i in range(1, n):
         x, y, w, h, area = (int(v) for v in stats[i])
         if area < OPEN_MIN_AREA or area > OPEN_MAX_AREA:
@@ -92,7 +135,16 @@ def detect_open_braces(gray, binv=None):
             continue
         if _hole_count(labels[y:y+h, x:x+w], i) > OPEN_MAX_HOLES:
             continue
-        out.append((x, y, w, h))
+        if _sharp_corners(labels, i, (x, y, w, h)) < OPEN_MIN_CORNERS:
+            continue
+        if any(iou(_xyxy((x, y, w, h)), _xyxy(e)) >= OPEN_MUTUAL_IOU
+               for e in exclude):
+            continue
+        cand.append((x, y, w, h))
+    # mutual-overlap suppression: fragments of one entity condemn each other
+    out = [b for b in cand
+           if not any(c is not b and iou(_xyxy(b), _xyxy(c)) >= OPEN_MUTUAL_IOU
+                      for c in cand)]
     return out
 
 
