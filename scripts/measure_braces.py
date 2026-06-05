@@ -37,7 +37,7 @@ def main(stems):
 
         # ---- axis-aligned path: per bound brace, corner + notch metrics ----
         closed = detect_braces(gray, binv)
-        for g in associate(closed, dets, W, H):
+        for g in associate(closed, dets, W, H, binv=binv):
             bx0, by0, bx1, by1 = g["brace_bbox"]
             box = (bx0, by0, bx1 - bx0, by1 - by0)
             idx = by_bbox.get(box)

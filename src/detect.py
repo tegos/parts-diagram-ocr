@@ -61,7 +61,8 @@ def process(path, write_overlay=True, timer=None):
         dets = detect(gray)
     with tm.stage("braces_closed"):
         braces = detect_braces(gray, binv)
-        groups = associate(braces, dets, gray.shape[1], gray.shape[0])
+        groups = associate(braces, dets, gray.shape[1], gray.shape[0],
+                           binv=binv)
     with tm.stage("braces_open"):
         open_braces = detect_open_braces(gray, binv, exclude=braces)
         groups += associate_open(open_braces, dets, binv,
