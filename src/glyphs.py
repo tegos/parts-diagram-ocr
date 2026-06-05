@@ -54,7 +54,10 @@ def glyph_candidates(binv):
 
 def group_numbers(boxes):
     """Merge horizontally-adjacent glyphs of similar height into number boxes."""
-    boxes = sorted(boxes, key=lambda b: (b[1] // 20, b[0]))
+    # sort by x only: merging proceeds rightward, so the leftmost glyph of a
+    # number must be visited first. (A y-bin presort split same-row digits
+    # whose y values straddled a bin boundary -- "14" became "1" + "4".)
+    boxes = sorted(boxes, key=lambda b: b[0])
     used = [False] * len(boxes)
     groups = []
     for i, b in enumerate(boxes):

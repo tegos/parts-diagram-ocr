@@ -2,7 +2,7 @@
 import numpy as np
 import cv2
 
-from src.braces import associate, detect_open_braces
+from src.braces import associate, associate_open, detect_open_braces
 from src.glyphs import glyph_candidates, group_numbers, iou, nms
 from src.pipeline import valid_callout
 
@@ -185,6 +185,81 @@ def test_open_brace_finds_three_on_sample():
     assert len(detect_open_braces(g)) == 3
 
 
+def _pronged_scene():
+    """A diagonal spine with a prong tick at its middle, on a 400x400 canvas.
+
+    Geometry mirrors the measured sample.png braces: members hug the spine
+    (offset ~5px), the id sits past the prong tip (offset ~35px, beyond the
+    member band).
+    """
+    g = np.full((400, 400), 255, np.uint8)
+    cv2.line(g, (40, 200), (360, 120), 0, 2)     # spine
+    cv2.line(g, (200, 160), (205, 185), 0, 2)    # prong toward the id
+    from src.glyphs import binarize_inv
+    binv = binarize_inv(g)
+    # the box must be the component's exact bbox, as detect_open_braces emits
+    n, _, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
+    i = max(range(1, n), key=lambda k: stats[k][4])
+    box = tuple(int(v) for v in stats[i][:4])
+    return binv, box
+
+
+def test_associate_open_binds_id_and_members():
+    binv, box = _pronged_scene()
+    dets = [_det("5", 211, 191),     # id: within ~1 digit height of the prong tip
+            _det("3", 120, 185),     # member: hugs the spine
+            _det("4", 280, 142),     # member: hugs the spine
+            _det("9", 60, 350)]      # far away: ignored
+    groups = associate_open([box], dets, binv, 400, 400)
+    assert len(groups) == 1
+    g = groups[0]
+    assert g["group"] == "5"
+    assert sorted(m["text"] for m in g["members"]) == ["3", "4"]
+
+
+def test_associate_open_unbound_without_id():
+    # no callout near the prong tip -> no group (stays JSON-only)
+    binv, box = _pronged_scene()
+    dets = [_det("3", 120, 185), _det("4", 280, 142)]
+    assert associate_open([box], dets, binv, 400, 400) == []
+
+
+def test_associate_open_binds_id_only():
+    # id at the prong but no callouts on the spine: still a group -- some
+    # braces group parts that carry no callout digits (sample grp 5).
+    binv, box = _pronged_scene()
+    dets = [_det("5", 211, 191), _det("9", 60, 350)]
+    groups = associate_open([box], dets, binv, 400, 400)
+    assert len(groups) == 1
+    assert groups[0]["group"] == "5"
+    assert groups[0]["members"] == []
+
+
+def test_associate_open_binds_sample_braces():
+    # regression: sample.png has 3 diagonal-brace groups (ids 2, 1, 5).
+    # grp 2 -> members 7,8; grp 1 -> 3,4 (+ nested 5,6 -- known double-count);
+    # grp 5 binds id-only (its washers/nuts carry no callout digits).
+    from src.config import DATA_DIR
+    p = DATA_DIR / "sample.png"
+    if not p.exists():
+        import pytest
+        pytest.skip("sample.png not present")
+    import json
+    from src.glyphs import binarize_inv
+    from src.braces import detect_braces, detect_open_braces
+    g = cv2.imread(str(p), cv2.IMREAD_GRAYSCALE)
+    binv = binarize_inv(g)
+    result = json.loads((DATA_DIR / "out" / "sample.json").read_text())
+    dets = result["detections"]
+    ob = detect_open_braces(g, binv, exclude=detect_braces(g, binv))
+    groups = associate_open(ob, dets, binv, g.shape[1], g.shape[0])
+    by_id = {grp["group"]: sorted(m["text"] for m in grp["members"])
+             for grp in groups}
+    assert "2" in by_id and by_id["2"] == ["7", "8"]
+    assert "1" in by_id and {"3", "4"} <= set(by_id["1"])
+    assert "5" in by_id    # id-only: bound with no members
+
+
 def test_associate_skips_brace_with_no_members():
     braces = [(100, 100, 20, 300)]
     dets = [_det("15", 60, 250)]  # only an outer callout, no inner members
@@ -205,6 +280,17 @@ def test_group_merges_adjacent_same_row():
     assert len(groups) == 1
     x, y, w, h = groups[0]
     assert x == 100 and w == 45
+
+
+def test_group_merges_across_y_bin_boundary():
+    # regression (710422200 "14"): two same-row glyphs whose y values fall in
+    # different 20px sort bins (2239 vs 2240) were visited out of x order, and
+    # the right glyph can't merge leftward -> "14" split into "1" + "4".
+    boxes = [(1331, 2240, 10, 37), (1354, 2239, 26, 38)]
+    groups = group_numbers(boxes)
+    assert len(groups) == 1
+    x, y, w, h = groups[0]
+    assert x == 1331 and x + w == 1380
 
 
 def test_group_keeps_distant_apart():

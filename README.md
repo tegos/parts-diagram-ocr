@@ -25,11 +25,11 @@ don't need OCR; this fills the gap for the raster ones.
 | ![input](assets/example-input.png) | ![output](assets/example-overlay.png) |
 
 *Each detected callout number is pulled out as a red leader-linked label.
-Grouping braces bound to their member callouts are highlighted in magenta with
-the group id. All marks are semi-transparent so the underlying drawing stays
-readable. (Braces drawn as diagonal lines are also detected — kept in the JSON
-and shown on demand in the interactive viewer, but left off the static overlay:
-they are too noisy to draw unconditionally, see `docs/adr/0002`.)*
+Grouping braces bound to a group id — axis-aligned `{` braces and diagonal
+bracket lines alike — are highlighted in magenta with the id. All marks are
+semi-transparent so the underlying drawing stays readable. (Detected braces
+that can't be bound to an id stay off the static overlay — kept in the JSON
+and shown on demand in the interactive viewer, see `docs/adr/0002`.)*
 
 ## How it works
 
@@ -43,9 +43,10 @@ words, not isolated digits), so detection is done with classic CV and only the
 2. **Gate** by whitespace isolation: real callouts sit in the margin, drawing
    features sit in ink.
 3. **Recognize** every candidate in one batched EasyOCR call (`0-9` + `A/B` suffix).
-4. **Group** detected `{` braces (vertical and horizontal), binding each to its
-   group-id + member callouts. Braces drawn as diagonal lines are also detected
-   (as open polylines) and highlighted, though not yet auto-numbered.
+4. **Group** detected braces, binding each to its group-id + member callouts.
+   Axis-aligned `{` braces associate by row/column adjacency; braces drawn as
+   diagonal lines (open polylines) associate by prong geometry — the id sits
+   within ~1 digit height of the prong tip, members hug the spine.
 
 See [`docs/adr/`](docs/adr) for the decisions behind this (engine choice, grouping).
 
@@ -112,8 +113,9 @@ pip install pytest && python -m pytest tests -q
 - Interior drawing features occasionally misread as a digit.
 - Nested braces double-count: a sub-group's members also list under the outer group.
 - Only `A`/`B` callout suffixes; the letter is sometimes lost when faint (`4A` → `4`).
-- Diagonal grouping braces are detected and highlighted but not yet auto-numbered
-  (the prong that points at the group id is too noisy to read reliably).
+- Diagonal-brace grouping is geometric: a rare part contour with a stray callout
+  near a corner can bind as a false group (2 such on the 100-image set, see
+  `docs/adr/0002`).
 
 The original 2018 Python 2.7 template-matching + KNN prototype is kept under
 [`legacy/`](legacy) for reference.
