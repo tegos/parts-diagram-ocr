@@ -186,15 +186,19 @@ def test_open_brace_finds_three_on_sample():
 
 
 def _pronged_scene():
-    """A diagonal spine with a prong tick at its middle, on a 400x400 canvas.
+    """A diagonal spine pronged along its length, on a 400x400 canvas.
 
-    Geometry mirrors the measured sample.png braces: members hug the spine
-    (offset ~5px), the id sits past the prong tip (offset ~35px, beyond the
-    member band).
+    Geometry mirrors the measured sample.png braces: a real grouping bracket
+    is pronged THROUGHOUT its spine, carrying 6-9 sharp vertices in the
+    central 80% of the span (sample.png braces: 6/6/10); a part-contour
+    fragment shows only ~3. Members hug the spine (offset ~5px), the id sits
+    past the DEEPEST prong tip (offset ~35px, beyond the member band).
     """
     g = np.full((400, 400), 255, np.uint8)
     cv2.line(g, (40, 200), (360, 120), 0, 2)     # spine
-    cv2.line(g, (200, 160), (205, 185), 0, 2)    # prong toward the id
+    cv2.line(g, (120, 175), (123, 187), 0, 2)    # short prong tick
+    cv2.line(g, (200, 160), (205, 185), 0, 2)    # deepest prong toward the id
+    cv2.line(g, (280, 142), (283, 154), 0, 2)    # short prong tick
     from src.glyphs import binarize_inv
     binv = binarize_inv(g)
     # the box must be the component's exact bbox, as detect_open_braces emits
@@ -233,6 +237,27 @@ def test_associate_open_binds_id_only():
     assert len(groups) == 1
     assert groups[0]["group"] == "5"
     assert groups[0]["members"] == []
+
+
+def test_associate_open_rejects_sparse_corner_fragment():
+    # a part-contour fragment shows at most ~3 sharp vertices along its
+    # spine; a real grouping bracket is pronged throughout (measured: true
+    # braces 6-9 central sharp vertices, the two dataset false bindings 3).
+    # Same id/member layout as the binding tests -- only the prong count
+    # differs, so this isolates the OPEN_BIND_MIN_SHARP gate.
+    g = np.full((400, 400), 255, np.uint8)
+    cv2.line(g, (40, 200), (360, 120), 0, 2)     # spine
+    cv2.line(g, (200, 160), (205, 185), 0, 2)    # lone prong tick
+    from src.glyphs import binarize_inv
+    binv = binarize_inv(g)
+    n, _, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
+    i = max(range(1, n), key=lambda k: stats[k][4])
+    box = tuple(int(v) for v in stats[i][:4])
+    dets = [_det("5", 211, 191),     # id: within ~1 digit height of the prong tip
+            _det("3", 120, 185),     # member: hugs the spine
+            _det("4", 280, 142),     # member: hugs the spine
+            _det("9", 60, 350)]      # far away: ignored
+    assert associate_open([box], dets, binv, 400, 400) == []
 
 
 def test_associate_open_binds_sample_braces():
