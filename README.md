@@ -25,9 +25,11 @@ don't need OCR; this fills the gap for the raster ones.
 | ![input](assets/example-input.png) | ![output](assets/example-overlay.png) |
 
 *Each detected callout number is pulled out as a red leader-linked label.
-Grouping braces are highlighted: cyan for braces drawn as diagonal lines, and
-magenta (with the group id) for braces bound to their member callouts. All marks
-are semi-transparent so the underlying drawing stays readable.*
+Grouping braces bound to their member callouts are highlighted in magenta with
+the group id. All marks are semi-transparent so the underlying drawing stays
+readable. (Braces drawn as diagonal lines are also detected — kept in the JSON
+and shown on demand in the interactive viewer, but left off the static overlay:
+they are too noisy to draw unconditionally, see `docs/adr/0002`.)*
 
 ## How it works
 

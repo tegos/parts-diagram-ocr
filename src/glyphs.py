@@ -15,9 +15,21 @@ def binarize_inv(gray):
     return binv
 
 
+def _linearity(labels, idx, box):
+    """Max perpendicular deviation of component pixels from their PCA line,
+    normalized by the box long side. A bare bar -> ~stroke_width/length; a
+    digit (even a narrow serifed "1") deviates an order of magnitude more."""
+    x, y, w, h = box
+    ys, xs = np.nonzero(labels[y:y + h, x:x + w] == idx)
+    pts = np.column_stack([xs, ys]).astype(np.float64)
+    q = pts - pts.mean(0)
+    _, _, vt = np.linalg.svd(q, full_matrices=False)
+    return float(np.abs(q @ vt[1]).max()) / max(w, h)
+
+
 def glyph_candidates(binv):
     """Single-digit-shaped blobs as (x, y, w, h)."""
-    n, _, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(binv, connectivity=8)
     out = []
     for i in range(1, n):
         x, y, w, h, area = (int(v) for v in stats[i])
@@ -31,6 +43,10 @@ def glyph_candidates(binv):
             continue
         fill = area / float(w * h)
         if not (C.GLYPH_MIN_FILL <= fill <= C.GLYPH_MAX_FILL):
+            continue
+        # tilted bare bars evade the aspect cap (tilt inflates w); a straight
+        # line is not a digit, however it leans
+        if h / float(w) >= 3 and _linearity(labels, i, (x, y, w, h)) < C.GLYPH_MAX_LINEARITY:
             continue
         out.append((x, y, w, h))
     return out

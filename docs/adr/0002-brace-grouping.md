@@ -88,8 +88,13 @@ threshold measured on real true/false candidates:
 
 Result: 402 → 50 boxes (34 images); sample keeps its 3, 121105250 drops to 0.
 Residual: ~2/3 of the surviving 50 are still part-contour fragments (gaskets,
-glass panels, wheel arches read as pronged polylines) — acceptable for an
-overlay-only hint; real progress now needs brace ground truth, not heuristics.
+glass panels, wheel arches, wavy valve-cover edges read as pronged polylines) —
+real progress now needs brace ground truth, not heuristics.
+
+**Consequence: cyan dropped from the static overlay.** With precision stuck at
+~1/3, drawing open braces unconditionally misleads more than it helps. They
+remain in the JSON (`open_braces`) and in the interactive viewer, which shows
+them on demand (hover / showall) rather than permanently.
 
 ## Known limitations / future work
 - Nested braces double-count: a sub-group's members also appear in the enclosing
